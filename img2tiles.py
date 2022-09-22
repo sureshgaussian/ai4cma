@@ -7,13 +7,14 @@ import json
 import pandas as pd
 
 
-def split_image_into_tiles(input_dir, filename, output_dir, tile_size=256):
+def split_image_into_tiles(input_file, output_dir, tile_size=256):
     tx =0
     ty=0
-    img = Image.open( os.path.join(input_dir, filename))
+    img = Image.open( input_file)
     xpatches = img.width // tile_size + 1
     ypatches = img.height // tile_size + 1
     tile_files = []
+    filename = os.path.basename(input_file)
     for ty in range(0,ypatches):
         for tx in range(0,xpatches):
             bb = (tx*tile_size, ty*tile_size, (tx+1)*tile_size, (ty+1)*tile_size)
@@ -21,18 +22,26 @@ def split_image_into_tiles(input_dir, filename, output_dir, tile_size=256):
             ext = "-"+str(tx)+"-"+str(ty)+".jpg"
             tfile = os.path.join(output_dir, os.path.splitext(filename)[0]+ext)
             crop_img.save(tfile)
-            tile_files.append(tfile)
+            tile_files.append(os.path.basename(tfile))
             
     return tile_files
+
+def check_non_zero_tile(input_file):
+    img_np = np.array(Image.open(input_file))
+    if np.sum(img_np) != 0:
+        return True
+    else:
+        return False
+
+
 
 def get_non_zero_tiles(input_dir, filename):
     search_path = os.path.join(input_dir, os.path.splitext(filename)[0]+"_*")
     files = glob.glob(search_path)
     non_zero_tiles = []
     for file in files:
-        img_np = np.array(Image.open(file))
-        if np.sum(img_np) != 0:
-            non_zero_tiles.append([file, np.sum(img_np)])
+        non_zero = check_non_zero_tile(file)
+        non_zero_tiles.append([file, non_zero])
 
     return non_zero_tiles
 
@@ -71,15 +80,15 @@ def make_label_images(input_dir, input_file, label_file, output_dir, tile_size):
                 py = py + ly
             py = 0
             px = px+lx 
-        ext = "-"+label+"-pattern.jpg"
+        ext = "-"+label+".jpg"
         label_fname = os.path.join(output_dir, os.path.splitext(label_file)[0]+ext)
         new_img.save(label_fname)
         label_patterns.append(label_fname)
 
     return label_patterns
     
-def make_label_pattern(input_dir, input_file, label, label_bb, output_dir, tile_size):
-    img = Image.open( os.path.join(input_dir, input_file))
+def make_label_pattern(input_file, label, label_bb, output_dir, tile_size):
+    img = Image.open( input_file)
     width = img.width
     height = img.height
     new_img = Image.new('RGB', (tile_size, tile_size))
@@ -97,10 +106,11 @@ def make_label_pattern(input_dir, input_file, label, label_bb, output_dir, tile_
             py = py + ly
         py = 0
         px = px+lx 
-    ext = "-"+label+"-pattern.jpg"
-    label_fname = os.path.join(output_dir, os.path.splitext(input_file)[0]+ext)
+    ext = "_"+label+".jpg"
+    fname = os.path.basename(input_file)
+    label_fname = os.path.join(output_dir, os.path.splitext(fname)[0]+ext)
     new_img.save(label_fname)
-    return label_fname
+    return os.path.basename(label_fname)
 
 def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filename, output_size=None):
     """
