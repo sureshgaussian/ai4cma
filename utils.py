@@ -3,7 +3,7 @@ import torchvision
 from dataset import CMADataset
 from torch.utils.data import DataLoader
 
-def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
+def save_checkpoint(state, filename="./temp/my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     torch.save(state, filename)
 
@@ -12,16 +12,22 @@ def load_checkpoint(checkpoint, model):
     model.load_state_dict(checkpoint["state_dict"])
 
 def get_loaders(
-    train_dir,
+    train_img_dir,
+    train_label_dir,
+    train_mask_dir,
     train_desc,
-    val_dir,
+    val_img_dir,
+    val_label_dir,
+    val_mask_dir,
     val_desc,
     batch_size,
     num_workers=4,
     pin_memory=True,
 ):
     train_ds = CMADataset(
-        image_dir=train_dir,
+        image_dir=train_img_dir,
+        label_dir=train_label_dir,
+        mask_dir=train_mask_dir,
         input_desc=train_desc,
     )
 
@@ -32,11 +38,14 @@ def get_loaders(
         pin_memory=pin_memory,
         shuffle=True,
     )
-
+# how is this possible?
     val_ds = CMADataset(
-        image_dir=val_dir,
+        image_dir=val_img_dir,
+        label_dir=val_label_dir,
+        mask_dir=val_mask_dir,
         input_desc=val_desc,
     )
+
 
     val_loader = DataLoader(
         val_ds,
@@ -56,7 +65,8 @@ def check_accuracy(loader, model, device="cuda"):
 
     with torch.no_grad():
         for x, y in loader:
-            x = x.to(device)
+            # print('Shape of X is: ', x.size())
+            x = x.to(device, dtype=torch.float)
             y = y.to(device).unsqueeze(1)
             preds = torch.sigmoid(model(x))
             preds = (preds > 0.5).float()
@@ -77,7 +87,7 @@ def save_predictions_as_imgs(
 ):
     model.eval()
     for idx, (x, y) in enumerate(loader):
-        x = x.to(device=device)
+        x = x.to(device=device, dtype=torch.float)
         with torch.no_grad():
             preds = torch.sigmoid(model(x))
             preds = (preds > 0.5).float()

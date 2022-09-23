@@ -25,16 +25,20 @@ IMAGE_HEIGHT = TILE_SIZE  # 1280 originally
 IMAGE_WIDTH = TILE_SIZE  # 1918 originally
 PIN_MEMORY = True
 LOAD_MODEL = False
-TRAIN_IMG_DIR = "data/train_images/"
-TRAIN_DESC = "data/train_masks/"
-VAL_IMG_DIR = "data/val_images/"
-VAL_DESC = "data/val_masks/"
+IMG_DIR = './temp/tiled_inputs'
+LABEL_DIR = "./temp/tiled_labels"
+MASK_DIR = "./temp/tiled_masks"
+TRAIN_DESC = "train.csv"
+VAL_DESC = "test.csv"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
+    print(f'In train function')
     loop = tqdm(loader)
 
     for batch_idx, (data, targets) in enumerate(loop):
-        data = data.to(device=DEVICE)
+        print(f'got the data')
+        data = data.to(device=DEVICE, dtype=torch.float)
+        print(f'Sent data to device')
         targets = targets.float().unsqueeze(1).to(device=DEVICE)
 
         # forward
@@ -51,6 +55,8 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         # update tqdm loop
         loop.set_postfix(loss=loss.item())
 
+        break
+
 
 def main():
     
@@ -60,20 +66,29 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(
-        TRAIN_IMG_DIR,
+        IMG_DIR,
+        LABEL_DIR,
+        MASK_DIR,
         TRAIN_DESC,
-        VAL_IMG_DIR,
+        IMG_DIR,
+        LABEL_DIR,
+        MASK_DIR,
         VAL_DESC,
         BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
     )
 
+    print(f'Got the loaders')
+
     if LOAD_MODEL:
         load_checkpoint(torch.load("my_checkpoint.pth.tar"), model)
 
 
+    print(f'Checking accuracy before epocs')
     check_accuracy(val_loader, model, device=DEVICE)
+
+    print(f'Getting the scaler')
     scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(NUM_EPOCHS):
@@ -90,9 +105,9 @@ def main():
         check_accuracy(val_loader, model, device=DEVICE)
 
         # print some examples to a folder
-        save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=DEVICE
-        )
+        # save_predictions_as_imgs(
+        #     val_loader, model, folder="./temp/saved_images/", device=DEVICE
+        # )
 
 
 if __name__ == "__main__":

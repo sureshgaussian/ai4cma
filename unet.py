@@ -48,6 +48,7 @@ class UNET(nn.Module):
         skip_connections = []
 
         for down in self.downs:
+            #print(f'down is: {down}')
             x = down(x)
             skip_connections.append(x)
             x = self.pool(x)

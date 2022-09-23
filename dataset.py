@@ -37,6 +37,10 @@ class CMADataset(Dataset):
         input = np.concatenate( (image, label), axis=-1)
         input = input/255.0
 
+        input= np.moveaxis(input, -1, 0)
+        label_mask= np.moveaxis(label_mask, -1, 0)
+
+
         #print(f'{input.shape}')
         return input, label_mask
 

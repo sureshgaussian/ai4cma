@@ -78,24 +78,37 @@ def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_
     
     return inputs_descriptor
 
-def prepare_balanced_inputs(input_csv_file, output_csv_file, ratio=0.6):
+def prepare_balanced_inputs(input_csv_file, output_train_csv_file, output_test_csv_file, ratio=0.6, test_split=0.2):
     """
     Given input csv file, select files for training
     """
     df = pd.read_csv(input_csv_file)
     avg_true = df['empty_tile'].mean()
     true_df = df[df['empty_tile']==True]
+    true_train_df = true_df.sample(frac=1-test_split).reset_index(drop=True)
+    true_test_df=true_df[~true_df.isin(true_train_df)].dropna(how = 'all')
+
     if avg_true < ratio:
         false_df = df[df['empty_tile']==False]
-        false_df_shuffle = false_df.sample(frac=ratio-avg_true).reset_index(drop=True)
-        input_df = pd.concat([true_df, false_df_shuffle])
-        input_df_shuffled = input_df.sample(frac=1).reset_index(drop=True)
-    else:
-        input_df_shuffled = df.sample(frac=1).reset_index(drop=True)
-    
-    input_df_shuffled.to_csv(output_csv_file)
+        fratio = avg_true/ratio 
+        false_df_shuffle = false_df.sample(frac=fratio).reset_index(drop=True)
 
-    print(f'Avg_True  {input_df_shuffled["empty_tile"].mean()}')
+        false_train_df = false_df_shuffle.sample(frac=1-test_split).reset_index(drop=True)
+        false_test_df=false_df_shuffle[~false_df_shuffle.isin(false_train_df)].dropna(how = 'all')
+
+        input_train_df = pd.concat([true_train_df, false_train_df])
+        input_train_df_shuffled = input_train_df.sample(frac=1).reset_index(drop=True)
+
+        input_test_df = pd.concat([true_test_df, false_test_df])
+        input_test_df_shuffled = input_train_df.sample(frac=1).reset_index(drop=True)
+    else:
+        input_train_df_shuffled = df.sample(frac=1-test_split).reset_index(drop=True)
+        input_test_df_shuffled = df[~df.isin(input_train_df)].dropna(how= 'all')
+    
+    input_train_df_shuffled.to_csv(output_train_csv_file)
+    input_test_df_shuffled.to_csv(output_test_csv_file)
+
+    print(f'Avg_True  {input_train_df_shuffled["empty_tile"].mean()}')
     return 
 
 def test_prepare_inputs():
@@ -110,4 +123,4 @@ def test_prepare_inputs():
 
 if __name__ == '__main__':
     
-    prepare_balanced_inputs("input.csv", "train.csv")
+    prepare_balanced_inputs("input.csv", "train.csv", "test.csv")
