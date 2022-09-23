@@ -1,3 +1,4 @@
+from cgitb import reset
 import pandas as pd
 import csv 
 import os
@@ -7,7 +8,7 @@ import img2tiles
 import json
 
 def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_inputs",
-                    tiled_label_dir = "tiled_lables", tiled_mask_dir = "tiled_masks"):
+                    tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
     jfiles_path = os.path.join(input_dir, "*.json")
     print(jfiles_path)
     json_files = glob.glob(jfiles_path)
@@ -77,6 +78,25 @@ def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_
     
     return inputs_descriptor
 
+def prepare_balanced_inputs(input_csv_file, output_csv_file, ratio=0.6):
+    """
+    Given input csv file, select files for training
+    """
+    df = pd.read_csv(input_csv_file)
+    avg_true = df['empty_tile'].mean()
+    true_df = df[df['empty_tile']==True]
+    if avg_true < ratio:
+        false_df = df[df['empty_tile']==False]
+        false_df_shuffle = false_df.sample(frac=ratio-avg_true).reset_index(drop=True)
+        input_df = pd.concat([true_df, false_df_shuffle])
+        input_df_shuffled = input_df.sample(frac=1).reset_index(drop=True)
+    else:
+        input_df_shuffled = df.sample(frac=1).reset_index(drop=True)
+    
+    input_df_shuffled.to_csv(output_csv_file)
+
+    print(f'Avg_True  {input_df_shuffled["empty_tile"].mean()}')
+    return 
 
 def test_prepare_inputs():
     tile_size = 256
@@ -90,4 +110,4 @@ def test_prepare_inputs():
 
 if __name__ == '__main__':
     
-    test_prepare_inputs()
+    prepare_balanced_inputs("input.csv", "train.csv")
