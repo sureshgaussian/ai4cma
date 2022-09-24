@@ -85,6 +85,7 @@ def check_accuracy(loader, model, device="cuda"):
 def save_predictions_as_imgs(
     loader, model, folder="saved_images/", device="cuda"
 ):
+    # set model to evaluation mode, disbaling training mode
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device, dtype=torch.float)
@@ -94,6 +95,8 @@ def save_predictions_as_imgs(
         torchvision.utils.save_image(
             preds, f"{folder}/pred_{idx}.png"
         )
-        torchvision.utils.save_image(y.unsqueeze(1), f"{folder}{idx}.png")
+        torchvision.utils.save_image(y.unsqueeze(1).float(), f"{folder}{idx}.png")
 
+    # set model back to training mode
     model.train()
+    return 
