@@ -74,7 +74,7 @@ def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_
                 inputs_descriptor.append([inp_file_name, img_ht, img_wd, in_tiles[idx], label_pattern_fname, label_mask_tiles[idx], empty_tile, tile_size])
 
             print("Current length of inputs: ", len(inputs_descriptor))
-            break
+            
     
     return inputs_descriptor
 
@@ -84,36 +84,47 @@ def prepare_balanced_inputs(input_csv_file, output_train_csv_file, output_test_c
     """
     df = pd.read_csv(input_csv_file)
     avg_true = df['empty_tile'].mean()
+    print(f'avg_true of the dataset = {avg_true}')
     true_df = df[df['empty_tile']==True]
-    true_train_df = true_df.sample(frac=1-test_split).reset_index(drop=True)
+    #true_train_df = true_df.sample(frac=1-test_split).reset_index(drop=True)
+    true_train_df = true_df.sample(frac=1-test_split)
     true_test_df=true_df[~true_df.isin(true_train_df)].dropna(how = 'all')
+    #true_test_df = pd.concat([true_df, true_train_df, true_train_df]).drop_duplicates(keep=False)
+
+    print(f'length of true = {len(true_df)}')
+    print(f'length of true_train = {len(true_train_df)}')
+    print(f'length of true_test = {len(true_test_df)}')
 
     if avg_true < ratio:
         false_df = df[df['empty_tile']==False]
         fratio = avg_true/ratio 
-        false_df_shuffle = false_df.sample(frac=fratio).reset_index(drop=True)
+        print(f'{fratio}')
+        false_df_shuffle = false_df.sample(frac=fratio)
 
-        false_train_df = false_df_shuffle.sample(frac=1-test_split).reset_index(drop=True)
+
+        false_train_df = false_df_shuffle.sample(frac=1-test_split)
         false_test_df=false_df_shuffle[~false_df_shuffle.isin(false_train_df)].dropna(how = 'all')
 
         input_train_df = pd.concat([true_train_df, false_train_df])
-        input_train_df_shuffled = input_train_df.sample(frac=1).reset_index(drop=True)
+        input_train_df_shuffled = input_train_df.sample(frac=1)
 
         input_test_df = pd.concat([true_test_df, false_test_df])
-        input_test_df_shuffled = input_train_df.sample(frac=1).reset_index(drop=True)
+        input_test_df_shuffled = input_test_df.sample(frac=1)
     else:
-        input_train_df_shuffled = df.sample(frac=1-test_split).reset_index(drop=True)
-        input_test_df_shuffled = df[~df.isin(input_train_df)].dropna(how= 'all')
+        input_train_df_shuffled = df.sample(frac=1-test_split)
+        input_test_df_shuffled = df[~df.isin(input_train_df_shuffled)].dropna(how= 'all')
     
     input_train_df_shuffled.to_csv(output_train_csv_file)
     input_test_df_shuffled.to_csv(output_test_csv_file)
 
     print(f'Avg_True  {input_train_df_shuffled["empty_tile"].mean()}')
+    print(f'Avg_True test {input_test_df_shuffled["empty_tile"].mean()}')
+    print(f'train len: {len(input_train_df_shuffled)}, test len: {len(input_test_df_shuffled)}')
     return 
 
 def test_prepare_inputs():
     tile_size = 256
-    input_descriptors = prepare_inputs("./inp", "./temp", tile_size)
+    input_descriptors = prepare_inputs("../data/training", "./temp", tile_size)
     print(type(input_descriptors))
     
     df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
@@ -122,5 +133,5 @@ def test_prepare_inputs():
 
 
 if __name__ == '__main__':
-    
+    #test_prepare_inputs()
     prepare_balanced_inputs("input.csv", "train.csv", "test.csv")

@@ -18,13 +18,13 @@ LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'Using device = {DEVICE}')
 BATCH_SIZE = 16
-NUM_EPOCHS = 3
+NUM_EPOCHS = 5
 NUM_WORKERS = 2
 TILE_SIZE = 256
 IMAGE_HEIGHT = TILE_SIZE  # 1280 originally
 IMAGE_WIDTH = TILE_SIZE  # 1918 originally
 PIN_MEMORY = True
-LOAD_MODEL = False
+LOAD_MODEL = True
 IMG_DIR = './temp/tiled_inputs'
 LABEL_DIR = "./temp/tiled_labels"
 MASK_DIR = "./temp/tiled_masks"
@@ -36,9 +36,9 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
     loop = tqdm(loader)
 
     for batch_idx, (data, targets) in enumerate(loop):
-        print(f'got the data')
+        #print(f'got the data')
         data = data.to(device=DEVICE, dtype=torch.float)
-        print(f'Sent data to device')
+        #print(f'Sent data to device')
         targets = targets.float().unsqueeze(1).to(device=DEVICE)
 
         # forward
@@ -54,8 +54,6 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
         # update tqdm loop
         loop.set_postfix(loss=loss.item())
-
-        break
 
 
 def main():
@@ -82,7 +80,7 @@ def main():
     print(f'Got the loaders')
 
     if LOAD_MODEL:
-        load_checkpoint(torch.load("my_checkpoint.pth.tar"), model)
+        load_checkpoint(torch.load("./temp/my_checkpoint.pth.tar"), model)
 
 
     print(f'Checking accuracy before epocs')

@@ -5,6 +5,7 @@ import glob
 import numpy as np
 import json
 import pandas as pd
+Image.MAX_IMAGE_PIXELS = None
 
 
 def split_image_into_tiles(input_file, output_dir, tile_size=256):
