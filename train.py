@@ -1,11 +1,17 @@
 #from ND_Crossentropy import DisPenalizedCE
 import torch
+import os
 # import albumentations as A
 # from albumentations.pytorch import ToTensorV2
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from unet import UNET
+from config import *
+from torchvision.models.segmentation.deeplabv3 import DeepLabHead
+from torchvision.models.segmentation import deeplabv3_resnet101
+
+
 from utils import (
     load_checkpoint,
     save_checkpoint,
@@ -18,54 +24,58 @@ from dice_loss import (
     GDiceLossV2
 )
 
-# Hyperparameters etc.
-LEARNING_RATE = 1e-4
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-print(f'Using device = {DEVICE}')
-BATCH_SIZE = 16
-NUM_EPOCHS = 5
-NUM_WORKERS = 2
-TILE_SIZE = 256
-IMAGE_HEIGHT = TILE_SIZE  # 1280 originally
-IMAGE_WIDTH = TILE_SIZE  # 1918 originally
-PIN_MEMORY = True
-LOAD_MODEL = False
-IMG_DIR = './temp/tiled_inputs'
-LABEL_DIR = "./temp/tiled_labels"
-MASK_DIR = "./temp/tiled_masks"
-TRAIN_DESC = "train.csv"
-VAL_DESC = "test.csv"
+def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
+    # print(f'In train function')
+    # loop = tqdm(loader)
+    running_loss = 0.
+    last_loss = 0.
 
-def train_fn(loader, model, optimizer, loss_fn, scaler):
-    print(f'In train function')
-    loop = tqdm(loader)
-
-    for batch_idx, (data, targets) in enumerate(loop):
+    for i, datum in enumerate(loader):
         #print(f'got the data')
+        data, targets = datum
         data = data.to(device=DEVICE, dtype=torch.float)
         #print(f'Sent data to device')
         targets = targets.float().unsqueeze(1).to(device=DEVICE)
-
+        optimizer.zero_grad()
         # forward
         with torch.cuda.amp.autocast():
-            predictions = model(data)
+            predictions = model(data)['out']
             loss = loss_fn(predictions, targets)
 
+        loss.backward()
+        optimizer.step()
+
         # backward
-        optimizer.zero_grad()
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+        # print('next')
+        # scaler.scale(loss).backward()
+        # scaler.step(optimizer)
+        # scaler.update()
 
         # update tqdm loop
-        loop.set_postfix(loss=loss.item())
+        # loop.set_postfix(loss=loss.item())
+        # Gather data and report
+        if i % 10 == 9:
+            running_loss += loss.item()
+            last_loss = running_loss / 10 # loss per batch
+            print('  batch {} loss: {}'.format(i + 1, last_loss))
+            # tb_x = epoch_index * len(loader) + i + 1
+            # tb_writer.add_scalar('Loss/train', last_loss, tb_x)
+            running_loss = 0.
+    
+    return last_loss
 
 
 def main():
     
+    model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
+    model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
 
-    model = UNET(in_channels=6, out_channels=1).to(DEVICE)
+    if torch.cuda.is_available():
+        model.cuda()
+
+    # model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
     loss_fn = nn.BCEWithLogitsLoss()
+    # loss_fn = nn.BCELoss()
     #loss_fn = GDiceLossV2()
     #loss_fn = DisPenalizedCE()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -82,40 +92,52 @@ def main():
         BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
+        NUM_SAMPLES,
+        USE_MEDIAN_COLOR
     )
 
     print(f'Got the loaders')
 
     if LOAD_MODEL:
-        load_checkpoint(torch.load("./temp/my_checkpoint.pth.tar"), model)
+        load_checkpoint(torch.load(CHEKPOINT_PATH), model)
         print(f'Checking accuracy of the pre-trained model')
         check_accuracy(val_loader, model, device=DEVICE)
 
     print(f'Getting the scaler')
     scaler = torch.cuda.amp.GradScaler()
 
-    for epoch in range(NUM_EPOCHS):
-        train_fn(train_loader, model, optimizer, loss_fn, scaler)
+    for epoch_index in range(NUM_EPOCHS):
+        last_loss = train_fn(epoch_index, train_loader, model, optimizer, loss_fn, scaler)
+
+        print(epoch_index, last_loss)
+
+        # if epoch_index % 10 == 9:
 
         # save model
         checkpoint = {
             "state_dict": model.state_dict(),
             "optimizer":optimizer.state_dict(),
         }
-        save_checkpoint(checkpoint)
+        save_checkpoint(checkpoint, CHEKPOINT_PATH)
 
         # check accuracy
+        check_accuracy(train_loader, model, device=DEVICE)
         check_accuracy(val_loader, model, device=DEVICE)
 
-        # print some examples to a folder
-        save_predictions_as_imgs(
-            val_loader, model, folder="./temp/saved_images/", device=DEVICE
-        )
-
+        # print some examples to a folder. Use train loader for dry runs
+        if NUM_SAMPLES:
+            save_predictions_as_imgs(
+                train_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+            )
+        else:
+            save_predictions_as_imgs(
+                val_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+            )
+                
 
 def test_save_predictions():
-    model = UNET(in_channels=6, out_channels=1).to(DEVICE)
-    load_checkpoint(torch.load("./temp/my_checkpoint.pth.tar"), model)
+    model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+    load_checkpoint(CHEKPOINT_PATH, model)
     train_loader, val_loader = get_loaders(
         IMG_DIR,
         LABEL_DIR,
@@ -128,13 +150,17 @@ def test_save_predictions():
         BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
+        NUM_SAMPLES,
+        USE_MEDIAN_COLOR
     )
+
+    check_accuracy(val_loader, model, device=DEVICE)
     
-    save_predictions_as_imgs(
-            val_loader, model, folder="./temp/saved_images/", device=DEVICE
-        )
+    # save_predictions_as_imgs(
+    #         val_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+    #     )
 
 
 if __name__ == "__main__":
     main()
-    #test_save_predictions()
+    # test_save_predictions()
