@@ -90,6 +90,104 @@ def convert_mask_to_raster_tif(input_file, output_file):
         dst.write(image, indexes=1)
         dst.close()    
 
+def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
+                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir):
+    inp_file_name = os.path.basename(input_file)
+    input_descriptors = []
+    for in_tile in in_tiles:
+        # print("in_tile = ", in_tile)
+        splittext = in_tile.split("-")
+        tile_nos  = [splittext[1], splittext[2]]
+        mask_ext = "-"+str(tile_nos[0])+"-"+str(tile_nos[1])
+        mask_tile_name = os.path.splitext(label_fname)[0]+mask_ext
+        # print("mask_tile = ", mask_name)
+        # break
+        input_descriptors.append([inp_file_name, in_tile, label_pattern_fname, mask_tile_name, label, legend_type, img_ht, img_wd])
+    
+    if not os.path.isdir(temp_out_dir):
+        os.mkdir(temp_out_dir)
+    
+    # input_descriptors ready to be shipped to the model
+    inp_df = pd.DataFrame(input_descriptors, columns = ["inp_file_name", "in_tile", "label_pattern_fname", "mask_tile_name", "legend", "legend_type", "height", "width"])
+    inp_df.to_csv("predict.csv", index=False)
+
+    # ship to inference on one image
+    infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
+
+    # get the original image from tiles
+    label_fname = os.path.splitext(label_pattern_fname)[0]
+    mask_out_fname = os.path.join(results_dir, label_fname+".tif")
+    img2tiles.stitch_image_from_tiles(tile_size, label_fname, temp_out_dir, mask_out_fname, (img_wd, img_ht))
+
+    if save_as_tiff:
+        convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
+
+
+    #remove the output directory
+    assert(os.path.isdir(temp_out_dir))
+    shutil.rmtree(temp_out_dir)
+    os.mkdir(temp_out_dir)
+
+    return
+
+def infer_points(input_file, points,output_file, save_as_tiff=True ):
+    im=cv2.imread(input_file)
+    im=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    xy_min, xy_max = points
+    x_min, y_min = xy_min
+    x_max, y_max = xy_max
+    
+    template = im[int(y_min):int(y_max), int(x_min):int(x_max)]
+    h, w = template.shape[0], template.shape[1]
+    res = cv2.matchTemplate(im, template,cv2.TM_CCOEFF_NORMED)
+    threshold = 0.55
+    loc = np.where( res >= threshold)
+    
+    # use the bounding boxes to create prediction binary raster
+    pred_binary_raster=np.zeros((im.shape[0], im.shape[1]))
+    for pt in zip(*loc[::-1]):
+        #print('match found:')
+        pred_binary_raster[int(pt[1]+float(h)/2), pt[0] + int(float(w)/2)]=1
+
+    pred_binary_raster=pred_binary_raster.astype('uint16')
+    cv2.imwrite(output_file, pred_binary_raster)
+    if save_as_tiff:
+        convert_mask_to_raster_tif(input_file, output_file)
+
+def infer_lines(input_file, points,output_file, save_as_tiff=True ):
+    im=cv2.imread(input_file)
+    im=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    xy_min, xy_max = points
+    x_min, y_min = xy_min
+    x_max, y_max = xy_max
+    
+    template = im[int(y_min):int(y_max), int(x_min):int(x_max)]
+    h, w = template.shape[0], template.shape[1]
+    gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, threshold1=30, threshold2=100)
+    central_pixel=tuple(np.argwhere(edges==255)[0])
+    sought = template[central_pixel].tolist()
+    color_range=20
+    lower = np.array([x - color_range for x in sought], dtype="uint8")
+    upper = np.array([x + color_range for x in sought], dtype="uint8")
+    
+    # create a mask to only preserve current legend color in the basemap
+    mask = cv2.inRange(im, lower, upper)
+    detected = cv2.bitwise_and(im, im, mask=mask)
+    
+    # convert to grayscale 
+    detected_gray = cv2.cvtColor(detected, cv2.COLOR_BGR2GRAY)
+    img_bw = cv2.threshold(detected_gray, 127, 255, cv2.THRESH_BINARY)[1]
+    
+    # convert the grayscale image to binary image
+    pred_binary_raster = img_bw.astype(float) / 255
+
+
+    pred_binary_raster=pred_binary_raster.astype('uint16')
+    cv2.imwrite(output_file, pred_binary_raster)
+    if save_as_tiff:
+        convert_mask_to_raster_tif(input_file, output_file)        
+
 def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
     # input_info_df = get_input_info(input_dir=input_dir)
     # check if the directories exist
@@ -123,52 +221,25 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
         for shape in label_info["shapes"]:
             label = shape["label"]
             points = shape["points"]
+            print(f'Processing {input_file}, shape: {label}')
 
             label_fname = os.path.splitext(json_file)[0]+"_"+label+".tif"
             label_fname = os.path.basename(label_fname)
+            output_file = os.path.join(results_dir, label_fname+".tif")
 
             # for each label, get the label_pattern file
             label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, temp_inp_dir, tile_size)
             legend_type = label.split("_")[-1]
-            if legend_type != "poly":
-                continue
-
+            if legend_type == "poly":
+                infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
+                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir)
+            else:
+                if legend_type == "pt":
+                    infer_points(input_file, points, output_file, save_as_tiff)
+                else:
+                    assert(legend_type == "line")
+                    infer_lines(input_file, points, output_file, save_as_tiff)
             inp_file_name = os.path.basename(input_file)
-            input_descriptors = []
-            for in_tile in in_tiles:
-                # print("in_tile = ", in_tile)
-                splittext = in_tile.split("-")
-                tile_nos  = [splittext[1], splittext[2]]
-                mask_ext = "-"+str(tile_nos[0])+"-"+str(tile_nos[1])
-                mask_tile_name = os.path.splitext(label_fname)[0]+mask_ext
-                # print("mask_tile = ", mask_name)
-                # break
-                input_descriptors.append([inp_file_name, in_tile, label_pattern_fname, mask_tile_name, label, legend_type, img_ht, img_wd])
-            
-            if not os.path.isdir(temp_out_dir):
-                os.mkdir(temp_out_dir)
-            
-            # input_descriptors ready to be shipped to the model
-            inp_df = pd.DataFrame(input_descriptors, columns = ["inp_file_name", "in_tile", "label_pattern_fname", "mask_tile_name", "legend", "legend_type", "height", "width"])
-            inp_df.to_csv("predict.csv", index=False)
-
-            # ship to inference on one image
-            infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
-
-            # get the original image from tiles
-            label_fname = os.path.splitext(label_pattern_fname)[0]
-            mask_out_fname = os.path.join(results_dir, label_fname+".tif")
-            img2tiles.stitch_image_from_tiles(tile_size, label_fname, temp_out_dir, mask_out_fname, (img_wd, img_ht))
-
-            if save_as_tiff:
-                convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
-
-
-            #remove the output directory
-            assert(os.path.isdir(temp_out_dir))
-            shutil.rmtree(temp_out_dir)
-            os.mkdir(temp_out_dir)
-
             validation_info.append([os.path.basename(json_file), inp_file_name, img_ht, img_wd, legend_type, label_fname])
 
     df = pd.DataFrame(validation_info, columns=["json_file", "inp_file", "height", "width", "legend_type", "label_fname"])
