@@ -171,14 +171,14 @@ def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, leg
             cv2.circle(im_copy, (center[1], center[0]), 1, (0,255,0), -1) # green
         print('Predicted raster overlayed on map image:')
         plt.rcParams["figure.figsize"] = (15,22)
-        plt.imshow(im_copy)
-        plt.show()
+        # plt.imshow(im_copy)
+        # plt.show()
         im_copy=img.copy()
         for center in np.argwhere(true_raster==1):
             cv2.circle(im_copy, (center[1], center[0]), 1, (255,0,0), -1) # red
         print('True raster overlayed on map image:')
-        plt.imshow(im_copy)
-        plt.show()
+        # plt.imshow(im_copy)
+        # plt.show()
     
     
     legend_feature=os.path.basename(true_raster_path).replace(os.path.basename(map_image_path).replace('.tif', '')+'_', '').replace('.tif', '')

@@ -7,12 +7,9 @@ from posixpath import splitext
 import img2tiles
 import json
 
-def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_inputs",
-                    tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
-    jfiles_path = os.path.join(input_dir, "*.json")
-    print(jfiles_path)
-    json_files = glob.glob(jfiles_path)
-    inputs_descriptor = []
+
+def make_output_dirs(input_dir, output_dir, tiled_input_dir="tiled_inputs",
+                     tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
     tinput_dir = os.path.join(output_dir, tiled_input_dir)
     if not os.path.isdir(tinput_dir):
         print(f'Creating the directory: {tinput_dir}')
@@ -30,7 +27,15 @@ def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_
         print(f'Creating the directory: {legend_pattern_dir}')
         os.mkdir(legend_pattern_dir)
 
+    return tinput_dir, label_mask_dir, legend_pattern_dir
 
+def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_inputs",
+                    tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
+    jfiles_path = os.path.join(input_dir, "*.json")
+    print(jfiles_path)
+    json_files = glob.glob(jfiles_path)
+    inputs_descriptor = []
+    tinput_dir, label_mask_dir, legend_pattern_dir = make_output_dirs(input_dir, output_dir, tiled_input_dir, tiled_label_dir , tiled_mask_dir )
 
 
     for json_file in json_files:
@@ -124,14 +129,14 @@ def prepare_balanced_inputs(input_csv_file, output_train_csv_file, output_test_c
 
 def test_prepare_inputs():
     tile_size = 256
-    input_descriptors = prepare_inputs("../data/training", "./temp", tile_size)
-    print(type(input_descriptors))
+    input_descriptors = prepare_inputs("../data/short_inp", "../data/short_inp", tile_size)
+    #print(type(input_descriptors))
     
     df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
-    df.to_csv("input.csv", index=False)
+    df.to_csv("short_input.csv", index=False)
 
 
 
 if __name__ == '__main__':
-    #test_prepare_inputs()
-    prepare_balanced_inputs("input.csv", "train.csv", "test.csv")
+    test_prepare_inputs()
+    prepare_balanced_inputs("short_input.csv", "short_train.csv", "short_test.csv")
