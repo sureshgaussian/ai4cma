@@ -168,15 +168,15 @@ def test_get_input_info():
 
 def test_prepare_inputs():
     tile_size = 256
-    input_descriptors = prepare_inputs("../data/short_inp", "../data/short_inp", tile_size)
+    input_descriptors = prepare_inputs("../data/training", "../data/training_inp", tile_size)
     #print(type(input_descriptors))
     
     df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
-    df.to_csv("short_input.csv", index=False)
+    df.to_csv("training_inputs.csv", index=False)
 
 
 
 if __name__ == '__main__':
-    # test_prepare_inputs()
-    # prepare_balanced_inputs("short_input.csv", "short_train.csv", "short_test.csv")
-    test_get_input_info()
+    test_prepare_inputs()
+    prepare_balanced_inputs("training_inputs.csv", "train.csv", "test.csv")
+    #test_get_input_info()

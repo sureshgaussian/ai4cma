@@ -50,7 +50,11 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
             preds = torch.sigmoid(model(x)['out'])
             preds = (preds > 0.5).float()
             #preds=preds.astype('uint16')
-            preds = preds.cpu().detach().numpy()
+            preds = preds.cpu().detach().numpy().astype('uint8')
+            if len(np.unique(preds)) > 2:
+                print(f'{mask_tile_name[0]} has {np.unique(preds)} ')
+                exit(0)
+
             # print("type of preds= ", type(preds), " shape of preds = ", preds.shape)
             assert(preds.shape[0] == len(mask_tile_name))
             
@@ -58,6 +62,7 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
                 out_file_path = os.path.join(tiled_output_dir, mask_tile_name[tile_idx])
 
                 # cv2.imwrite(out_file_path, preds[0,0,:,:].astype('uint16'))
+                #print(f'shape of cv2.imwrite is {preds[tile_idx,0,:,:].shape}')
                 cv2.imwrite(out_file_path, preds[tile_idx,0,:,:])
     
     return 
@@ -72,10 +77,14 @@ def convert_mask_to_raster_tif(input_file, output_file):
    
     raster.close()
     # image = Image.open(output_file)
-    image = Image.open(output_file).convert("L")
+    image = Image.open(output_file)
     assert(width == image.width)
     assert(height == image.height)
     image = np.array(image)
+    if len(np.unique(image)) > 2:
+        print(f'{input_file} has values >2 ')
+        exit(0)
+
     
     with rasterio.open(output_file, 'w', 
                         driver    = 'GTIFF', 
@@ -136,6 +145,15 @@ def infer_points(input_file, points,output_file, save_as_tiff=True ):
     xy_min, xy_max = points
     x_min, y_min = xy_min
     x_max, y_max = xy_max
+    tx_min = min(x_min, x_max)
+    tx_max = max(x_min, x_max)
+    x_min = tx_min
+    x_max = tx_max 
+
+    ty_min = min(y_min, y_max)
+    ty_max = max(y_min, y_max)
+    y_min = ty_min
+    y_max = ty_max 
     
     template = im[int(y_min):int(y_max), int(x_min):int(x_max)]
     h, w = template.shape[0], template.shape[1]
@@ -160,6 +178,16 @@ def infer_lines(input_file, points,output_file, save_as_tiff=True ):
     xy_min, xy_max = points
     x_min, y_min = xy_min
     x_max, y_max = xy_max
+
+    tx_min = min(x_min, x_max)
+    tx_max = max(x_min, x_max)
+    x_min = tx_min
+    x_max = tx_max 
+
+    ty_min = min(y_min, y_max)
+    ty_max = max(y_min, y_max)
+    y_min = ty_min
+    y_max = ty_max 
     
     template = im[int(y_min):int(y_max), int(x_min):int(x_max)]
     h, w = template.shape[0], template.shape[1]
@@ -221,7 +249,8 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
         for shape in label_info["shapes"]:
             label = shape["label"]
             points = shape["points"]
-            print(f'Processing {input_file}, shape: {label}')
+            #if points ==
+            print(f'Processing {input_file}, label: {label}')
 
             label_fname = os.path.splitext(json_file)[0]+"_"+label+".tif"
             label_fname = os.path.basename(label_fname)
@@ -253,6 +282,7 @@ if __name__ == "__main__":
     tout_dir = INF_TEMP_TILED_OUT_DIR
     tile_size = TILE_SIZE
     results_dir = INF_RESULTS_DIR
+    #create_legend_median_values(input_dir, output_json_file_name)
     infer(input_dir, results_dir, tinp_dir, tout_dir, tile_size)
     #convert_mask_to_raster_tif("../data/mini_validation/CO_Elkhorn.tif", "./temp/results/CO_Elkhorn_Qal_poly.tif")
     shutil.make_archive('gaussiansolutionsteam', format='zip', root_dir=results_dir)

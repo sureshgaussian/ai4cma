@@ -1,4 +1,5 @@
 from turtle import width
+import cv2
 import rasterio
 from PIL import Image
 import os
@@ -129,30 +130,48 @@ def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filen
         split_fname = os.path.splitext(split_fname)[0]
         tilex = int(split_fname.split("-")[1])
         tiley = int(split_fname.split("-")[2])
-        print(tfile, split_fname, tilex, tiley)
+        #print(tfile, split_fname, tilex, tiley)
         tfiles_info.append( (tfile, split_fname, tilex, tiley))
-    print(type(tfiles_info))
+    #print(type(tfiles_info))
 
     df = pd.DataFrame(tfiles_info, columns=['file_path', 'base_name', 'tile_x', 'tile_y'])
     max_tile_x = df['tile_x'].max()
     max_tile_y = df['tile_y'].max()
-    print(f'{max_tile_x}, {max_tile_y}')
+    #print(f'{max_tile_x}, {max_tile_y}')
 
     # lets start filling in the new image
     if mask_flag:
         image = Image.new('L', (tile_size*max_tile_x, tile_size*max_tile_y))
     else:    
         image = Image.new('RGB', (tile_size*max_tile_x, tile_size*max_tile_y))
+
+    print(f'Shape of empty image = {image.size}')
+
     for idx, row in df.iterrows():
-        tile_img = Image.open(row['file_path'])
-        
+        tile_img = Image.open(row['file_path']).convert('L')
+        #tile_img = cv2.imread(row['file_path'], cv2.IMREAD_GRAYSCALE)
+        #print(f'Shape of tile image = {tile_img.size}')
+
+        tile_img = np.clip(np.array(tile_img), 0, 1)
+        tile_img = Image.fromarray(tile_img)
+
         px = row['tile_x'] * tile_size
         py = row['tile_y'] * tile_size
         image.paste(tile_img, (px, py))
 
+        
+        if len(np.unique(tile_img)) > 2:
+            print(f'{output_filename} has values >2 while stitching')
+            exit(0)
+
     if output_size!= None:
         image = image.crop((0,0, output_size[0], output_size[1]))
     image.save(output_filename)
+
+    image = np.array(image)
+    if len(np.unique(image)) > 2:
+        print(f'{output_filename} has values >2 after stitching')
+        exit(0)
 
 
     return output_filename

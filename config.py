@@ -10,12 +10,12 @@ TRAIN_DESC = os.path.join(CODE_DIR, "short_train.csv")
 VAL_DESC = os.path.join(CODE_DIR, "short_test.csv")
 
 TEMP_DIR = os.path.join(CODE_DIR, "temp")
-#INF_INP_DIR = os.path.join(DATA_DIR, "validation")
-INF_INP_DIR = os.path.join(DATA_DIR, "mini_validation")
+INF_INP_DIR = os.path.join(DATA_DIR, "validation")
+#INF_INP_DIR = os.path.join(DATA_DIR, "mini_validation")
 INF_TEMP_TILED_INP_DIR = os.path.join(TEMP_DIR, "tiled_inputs")
 INF_TEMP_TILED_OUT_DIR = os.path.join(TEMP_DIR, "tiled_outputs")
 INF_RESULTS_DIR = os.path.join(TEMP_DIR, "results")
-INF_MODEL_PATH = "./temp/my_checkpoint_median_rgb_deeplabv3_all.pth.tar"
+INF_MODEL_PATH = "/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_deeplabv3_all.pth.tar"
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
