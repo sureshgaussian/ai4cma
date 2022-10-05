@@ -47,7 +47,7 @@ def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_
         in_tiles = img2tiles.split_image_into_tiles(input_file, tinput_dir, tile_size)
 
         # prepare the label_pattern_tile for all labels
-        j_fname = os.path.split(json_file)[-1]
+        j_fname = os.path.basename(json_file)
         #label_patterns = img2tiles.make_label_images(input_dir, in_fname, j_fname, output_dir, tile_size)
 
 
@@ -127,6 +127,45 @@ def prepare_balanced_inputs(input_csv_file, output_train_csv_file, output_test_c
     print(f'train len: {len(input_train_df_shuffled)}, test len: {len(input_test_df_shuffled)}')
     return 
 
+def get_input_info(input_dir):
+    jfiles_path = os.path.join(input_dir, "*.json")
+    #print(jfiles_path)
+    json_files = glob.glob(jfiles_path)
+    inputs_descriptor = []
+    for json_file in json_files:
+
+        input_file = json_file.replace(".json",".tif")
+        
+        # prepare the label_pattern_tile for all labels
+        j_fname = os.path.basename(json_file)
+        #label_patterns = img2tiles.make_label_images(input_dir, in_fname, j_fname, output_dir, tile_size)
+
+        with open(json_file) as jfile:
+            label_info = json.load(jfile)
+
+        img_ht = label_info["imageHeight"]
+        img_wd = label_info["imageWidth"]
+
+        # split the label_masks into tiles
+        for shape in label_info["shapes"]:
+            label = shape["label"]
+            points = shape["points"]
+            
+            #get the label.tif file
+            label_fname = os.path.splitext(j_fname)[0]+"_"+label+".tif"
+            legend_type = label.split("_")[-1]
+            inp_file_name = os.path.basename(input_file)
+            inputs_descriptor.append([inp_file_name, label_fname, label, legend_type, img_wd, img_ht, points])
+    
+    df = pd.DataFrame(inputs_descriptor, columns=["inp_fname", "mask_fname", "label", "legend_type", "width", "height", "points"])      
+    return df
+
+def test_get_input_info():
+    info = get_input_info("../data/training")
+    info.to_csv("training_input_info.csv", index=False)
+    
+
+
 def test_prepare_inputs():
     tile_size = 256
     input_descriptors = prepare_inputs("../data/short_inp", "../data/short_inp", tile_size)
@@ -138,5 +177,6 @@ def test_prepare_inputs():
 
 
 if __name__ == '__main__':
-    test_prepare_inputs()
-    prepare_balanced_inputs("short_input.csv", "short_train.csv", "short_test.csv")
+    # test_prepare_inputs()
+    # prepare_balanced_inputs("short_input.csv", "short_train.csv", "short_test.csv")
+    test_get_input_info()

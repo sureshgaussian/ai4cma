@@ -1,4 +1,5 @@
 from turtle import width
+import rasterio
 from PIL import Image
 import os
 import glob
@@ -113,11 +114,12 @@ def make_label_pattern(input_file, label, label_bb, output_dir, tile_size):
     new_img.save(label_fname)
     return os.path.basename(label_fname)
 
-def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filename, output_size=None):
+def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filename, output_size=None, mask_flag=True):
     """
     Given a base file name, and a folder where to look for the tile image files, and the tile_size,
     this stitches the overall image, and save it.
     """
+    print(f'base_filename = {base_filename}, input_folder = {input_folder}')
     #lets parse the list of files
     files = os.path.join(input_folder,base_filename)
     tile_files = glob.glob(files+"-*-*.jpg")
@@ -137,7 +139,10 @@ def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filen
     print(f'{max_tile_x}, {max_tile_y}')
 
     # lets start filling in the new image
-    image = Image.new('RGB', (tile_size*max_tile_x, tile_size*max_tile_y))
+    if mask_flag:
+        image = Image.new('L', (tile_size*max_tile_x, tile_size*max_tile_y))
+    else:    
+        image = Image.new('RGB', (tile_size*max_tile_x, tile_size*max_tile_y))
     for idx, row in df.iterrows():
         tile_img = Image.open(row['file_path'])
         
@@ -148,6 +153,7 @@ def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filen
     if output_size!= None:
         image = image.crop((0,0, output_size[0], output_size[1]))
     image.save(output_filename)
+
 
     return output_filename
 
