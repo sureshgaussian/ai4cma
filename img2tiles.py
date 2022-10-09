@@ -12,6 +12,12 @@ Image.MAX_IMAGE_PIXELS = None
 
 
 def split_image_into_tiles(input_file, output_dir, tile_size=256):
+    """
+    empty file concept introduced to reduce disk space usage
+    """
+
+    empty_file = os.path.join(output_dir, "empty_tile.jpg")
+    empty_file = os.path.abspath(empty_file)
     tx =0
     ty=0
     try:
@@ -29,7 +35,18 @@ def split_image_into_tiles(input_file, output_dir, tile_size=256):
             crop_img = img.crop(bb)
             ext = "-"+str(tx)+"-"+str(ty)+".jpg"
             tfile = os.path.join(output_dir, os.path.splitext(filename)[0]+ext)
-            crop_img.save(tfile)
+
+            if np.sum(crop_img) != 0:
+                crop_img.save(tfile)
+            else:
+                if not os.path.exists(empty_file):
+                    crop_img.save(empty_file)
+                
+                tfile = os.path.abspath(tfile)
+
+                if not os.path.exists(tfile):
+                    os.symlink(src=empty_file, dst=tfile)
+
             tile_files.append(os.path.basename(tfile))
             
     return tile_files
