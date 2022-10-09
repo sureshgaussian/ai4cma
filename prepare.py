@@ -29,11 +29,8 @@ def make_output_dirs(input_dir, output_dir, tiled_input_dir="tiled_inputs",
 
     return tinput_dir, label_mask_dir, legend_pattern_dir
 
-def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_inputs",
+def prepare_inputs_from_json_files(json_files, input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_inputs",
                     tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
-    jfiles_path = os.path.join(input_dir, "*.json")
-    print(jfiles_path)
-    json_files = glob.glob(jfiles_path)
     inputs_descriptor = []
     tinput_dir, label_mask_dir, legend_pattern_dir = make_output_dirs(input_dir, output_dir, tiled_input_dir, tiled_label_dir , tiled_mask_dir )
 
@@ -85,6 +82,30 @@ def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_
     
     return inputs_descriptor
 
+def prepare_inputs_from_csv(csv_file, input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_inputs",
+                    tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
+
+    df = pd.read_csv(csv_file)
+    input_files = df.inp_fname.unique()
+    json_files = [ os.path.join(input_dir, x.replace(".tif", ".json")) for x in input_files]
+
+    #json_files = json_files[0:2]
+
+    inputs_descriptor = prepare_inputs_from_json_files(json_files, input_dir, output_dir, tile_size, tiled_input_dir,
+                    tiled_label_dir , tiled_mask_dir )
+    return inputs_descriptor
+    
+
+def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_inputs",
+                    tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
+    jfiles_path = os.path.join(input_dir, "*.json")
+    print(jfiles_path)
+    json_files = glob.glob(jfiles_path)
+    inputs_descriptor = prepare_inputs_from_json_files(json_files, input_dir, output_dir, tile_size, tiled_input_dir,
+                    tiled_label_dir , tiled_mask_dir )
+    return inputs_descriptor
+
+
 def prepare_balanced_inputs(input_csv_file, output_train_csv_file, output_test_csv_file, ratio=0.6, test_split=0.2):
     """
     Given input csv file, select files for training
@@ -129,6 +150,31 @@ def prepare_balanced_inputs(input_csv_file, output_train_csv_file, output_test_c
     print(f'train len: {len(input_train_df_shuffled)}, test len: {len(input_test_df_shuffled)}')
     return 
 
+def prepare_balanced_empty_tiles(input_csv, output_csv, ratio=0.6):
+    df = pd.read_csv(input_csv)
+    # balance empty tiles vs non-empty
+    empty_ratio = len(df[df.empty_tile == False])/len(df)
+    print(empty_ratio)
+
+    if empty_ratio > ratio:
+        true_df = df[df.empty_tile==True]
+        # ratio = fl/(fl+tl)
+        # ratio(fl+tl) = fl
+        # (1-ratio)*f1= ratio*tl
+        # fl = ratio*tl(1-ratio)
+        false_len = int(ratio*len(true_df)/(1-ratio))
+        false_df = df[df.empty_tile == False]
+        false_df = false_df.sample(n=false_len, random_state=42)
+        input_df = pd.concat([false_df, true_df])
+        input_df = input_df.sample(frac=1, random_state=43)
+    else:
+        input_df = df 
+    
+    print(f'Input df len = {len(df)}, output = {len(input_df)} ')
+    
+    input_df.to_csv(output_csv, index=False)
+    return 
+
 def get_input_info(input_dir):
     jfiles_path = os.path.join(input_dir, "*.json")
     #print(jfiles_path)
@@ -168,17 +214,21 @@ def test_get_input_info():
     
 
 
-def test_prepare_inputs():
+def test_prepare_inputs(training_csv_file="training_tiled_inputs.csv"):
     tile_size = 256
-    input_descriptors = prepare_inputs("../data/training", "../data/training_inp", tile_size)
+    #input_descriptors = prepare_inputs("../data/training", "../data/training_inp", tile_size)
+    input_descriptors =prepare_inputs_from_csv("../eda/train_split.csv","../data/training", "temp", tile_size)
     #print(type(input_descriptors))
     
     df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
-    df.to_csv("training_inputs.csv", index=False)
+    df.to_csv(training_csv_file, index=False)
 
 
 
 if __name__ == '__main__':
-    test_prepare_inputs()
-    prepare_balanced_inputs("training_inputs.csv", "train.csv", "test.csv")
+    training_csv_file="training_tiled_inputs.csv"
+    #test_prepare_inputs(training_csv_file)
+    #prepare_balanced_inputs(training_csv_file, "train.csv", "test.csv")
     #test_get_input_info()
+    output_csv = "balanced_tiled_training.csv"
+    prepare_balanced_empty_tiles(training_csv_file, output_csv)
