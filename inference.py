@@ -22,6 +22,8 @@ from utils import (
 import cv2
 import json
 
+import logging
+
 def setup_inference():
     model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
@@ -55,7 +57,7 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
                 print(f'{mask_tile_name[0]} has {np.unique(preds)} ')
                 exit(0)
 
-            # print("type of preds= ", type(preds), " shape of preds = ", preds.shape)
+            #print("type of preds= ", type(preds), " shape of preds = ", preds.shape)
             assert(preds.shape[0] == len(mask_tile_name))
             
             for tile_idx in range(len(mask_tile_name)):
@@ -63,7 +65,11 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
 
                 # cv2.imwrite(out_file_path, preds[0,0,:,:].astype('uint16'))
                 #print(f'shape of cv2.imwrite is {preds[tile_idx,0,:,:].shape}')
-                cv2.imwrite(out_file_path, preds[tile_idx,0,:,:])
+                try:
+                    cv2.imwrite(out_file_path, preds[tile_idx,0,:,:])
+                except:
+                    print("error in writing file: ", out_file_path)
+                    exit()
     
     return 
 
@@ -100,13 +106,14 @@ def convert_mask_to_raster_tif(input_file, output_file):
         dst.close()    
 
 def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
-                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir):
+                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size):
     inp_file_name = os.path.basename(input_file)
     input_descriptors = []
+    assert len(in_tiles) > 0, "infer_polys called with no in_tiles"
     for in_tile in in_tiles:
         # print("in_tile = ", in_tile)
         splittext = in_tile.split("-")
-        tile_nos  = [splittext[1], splittext[2]]
+        tile_nos  = [splittext[-2], splittext[-1]]
         mask_ext = "-"+str(tile_nos[0])+"-"+str(tile_nos[1])
         mask_tile_name = os.path.splitext(label_fname)[0]+mask_ext
         # print("mask_tile = ", mask_name)
@@ -173,6 +180,8 @@ def infer_points(input_file, points,output_file, save_as_tiff=True ):
         convert_mask_to_raster_tif(input_file, output_file)
 
 def infer_lines(input_file, points,output_file, save_as_tiff=True ):
+
+
     im=cv2.imread(input_file)
     im=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     xy_min, xy_max = points
@@ -220,6 +229,10 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
     # input_info_df = get_input_info(input_dir=input_dir)
     # check if the directories exist
     model, device = setup_inference()
+    print(f'Setup of the model for inference complete')
+
+    logging.basicConfig(filename="validation_run.log")
+
 
     if not os.path.isdir(results_dir):
         os.mkdir(results_dir)
@@ -237,7 +250,11 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
             shutil.rmtree(temp_inp_dir)
             os.mkdir(temp_inp_dir)
 
+        print(f'Working on {json_file}')
         in_tiles = img2tiles.split_image_into_tiles(input_file, temp_inp_dir, tile_size)
+
+        if in_tiles == None:
+            continue
         
         with open(json_file) as jfile:
             label_info = json.load(jfile)
@@ -251,17 +268,18 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
             points = shape["points"]
             #if points ==
             print(f'Processing {input_file}, label: {label}')
+            logging.info(f'Processing {input_file}, label: {label}')
 
             label_fname = os.path.splitext(json_file)[0]+"_"+label+".tif"
             label_fname = os.path.basename(label_fname)
-            output_file = os.path.join(results_dir, label_fname+".tif")
+            output_file = os.path.join(results_dir, label_fname)
 
             # for each label, get the label_pattern file
             label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, temp_inp_dir, tile_size)
             legend_type = label.split("_")[-1]
             if legend_type == "poly":
                 infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
-                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir)
+                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
             else:
                 if legend_type == "pt":
                     infer_points(input_file, points, output_file, save_as_tiff)
@@ -275,8 +293,7 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
     df.to_csv("inference_results.csv")
     return 
 
-
-if __name__ == "__main__":
+def prepare_for_submission():
     input_dir = INF_INP_DIR
     tinp_dir = INF_TEMP_TILED_INP_DIR
     tout_dir = INF_TEMP_TILED_OUT_DIR
@@ -286,3 +303,16 @@ if __name__ == "__main__":
     infer(input_dir, results_dir, tinp_dir, tout_dir, tile_size)
     #convert_mask_to_raster_tif("../data/mini_validation/CO_Elkhorn.tif", "./temp/results/CO_Elkhorn_Qal_poly.tif")
     shutil.make_archive('gaussiansolutionsteam', format='zip', root_dir=results_dir)
+
+    return 
+
+def test_one_mask():
+    model, device = setup_inference()
+    csv_file = "predict.csv"
+    tiled_input_dir = INF_TEMP_TILED_INP_DIR
+    tiled_output_dir = INF_TEMP_TILED_OUT_DIR
+    infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir)
+
+if __name__ == "__main__":
+    #test_one_mask()
+    prepare_for_submission()

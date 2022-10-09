@@ -1,3 +1,4 @@
+from math import nan, isnan
 from turtle import width
 import cv2
 import rasterio
@@ -13,7 +14,11 @@ Image.MAX_IMAGE_PIXELS = None
 def split_image_into_tiles(input_file, output_dir, tile_size=256):
     tx =0
     ty=0
-    img = Image.open( input_file)
+    try:
+        img = Image.open( input_file)
+    except:
+        print(f"error in opening {input_file}")
+        return None 
     xpatches = img.width // tile_size + 1
     ypatches = img.height // tile_size + 1
     tile_files = []
@@ -124,20 +129,23 @@ def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filen
     #lets parse the list of files
     files = os.path.join(input_folder,base_filename)
     tile_files = glob.glob(files+"-*-*.jpg")
+    assert(len(tile_files) > 0)
     tfiles_info = []
     for tfile in tile_files:
         split_fname = os.path.basename(tfile)
         split_fname = os.path.splitext(split_fname)[0]
-        tilex = int(split_fname.split("-")[1])
-        tiley = int(split_fname.split("-")[2])
-        #print(tfile, split_fname, tilex, tiley)
+        tilex = int(split_fname.split("-")[-2])
+        tiley = int(split_fname.split("-")[-1])
+        print(tfile, split_fname, tilex, tiley)
         tfiles_info.append( (tfile, split_fname, tilex, tiley))
     #print(type(tfiles_info))
 
     df = pd.DataFrame(tfiles_info, columns=['file_path', 'base_name', 'tile_x', 'tile_y'])
     max_tile_x = df['tile_x'].max()
     max_tile_y = df['tile_y'].max()
-    #print(f'{max_tile_x}, {max_tile_y}')
+    print(f' max tile x, y are: {max_tile_x}, {max_tile_y}')
+    if isnan(max_tile_x):
+        print(df)
 
     # lets start filling in the new image
     if mask_flag:

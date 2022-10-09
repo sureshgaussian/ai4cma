@@ -45,6 +45,8 @@ def prepare_inputs(input_dir, output_dir, tile_size=256, tiled_input_dir="tiled_
         input_file = json_file.replace(".json",".tif")
         
         in_tiles = img2tiles.split_image_into_tiles(input_file, tinput_dir, tile_size)
+        if in_tiles == None:
+            continue
 
         # prepare the label_pattern_tile for all labels
         j_fname = os.path.basename(json_file)

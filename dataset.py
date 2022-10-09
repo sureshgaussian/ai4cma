@@ -119,7 +119,8 @@ class CMAInferenceDataset(Dataset):
             # print("length of input_df: ", len(input_df))
             input_df = input_df.reset_index(drop=True)
             self.input_df = input_df
-            # print("length of self.input_df: ", len(self.input_df))
+            #print("length of self.input_df: ", len(self.input_df))
+            assert(len(self.input_df) > 0)
         else:
             self.input_df = pd.read_csv(self.input_desc)
 
@@ -184,7 +185,9 @@ class CMAInferenceDataset(Dataset):
         return input, mask_tile_name
 
     def load_legend_median_values(self):
-        legend_median_data_path = '../data/all_legends_median_data.json'
+        #legend_median_data_path = '../data/all_legends_median_data.json'
+        legend_median_data_path = '../eda/everything_legends_median_data.json'
+
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
         self.legend_data = legend_data        
