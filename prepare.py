@@ -4,6 +4,7 @@ import csv
 import os
 import glob
 from posixpath import splitext
+from config import CODE_DIR, DATA_DIR, EDA_DIR
 import img2tiles
 import json
 
@@ -209,26 +210,25 @@ def get_input_info(input_dir):
     return df
 
 def test_get_input_info():
-    info = get_input_info("../data/training")
-    info.to_csv("training_input_info.csv", index=False)
-    
-
+    info = get_input_info(os.path.join(DATA_DIR, 'training'))
+    info.to_csv(os.path.join(DATA_DIR, "training_input_info.csv"), index=False)
 
 def test_prepare_inputs(training_csv_file="training_tiled_inputs.csv"):
     tile_size = 256
     #input_descriptors = prepare_inputs("../data/training", "../data/training_inp", tile_size)
-    input_descriptors =prepare_inputs_from_csv("../eda/train_split.csv","../data/training", "temp", tile_size)
+    # input_descriptors =prepare_inputs_from_csv(os.path.join(EDA_DIR, 'train_split.csv'), os.path.join(DATA_DIR, 'training') , os.path.join(CODE_DIR, 'temp'), tile_size)
+    input_descriptors =prepare_inputs_from_csv(os.path.join(EDA_DIR, 'test_split.csv'), os.path.join(DATA_DIR, 'training') , os.path.join(CODE_DIR, 'temp'), tile_size)
     #print(type(input_descriptors))
     
     df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
     df.to_csv(training_csv_file, index=False)
 
-
-
 if __name__ == '__main__':
-    training_csv_file="training_tiled_inputs.csv"
+    # training_csv_file="training_tiled_inputs.csv"
+    training_csv_file= os.path.join(CODE_DIR, "test_tiled_inputs.csv")
     test_prepare_inputs(training_csv_file)
     #prepare_balanced_inputs(training_csv_file, "train.csv", "test.csv")
     #test_get_input_info()
-    output_csv = "balanced_tiled_training.csv"
+    output_csv = os.path.join(CODE_DIR, "balanced_tiled_test.csv")
     prepare_balanced_empty_tiles(training_csv_file, output_csv)
+
