@@ -227,7 +227,7 @@ def test_prepare_inputs(training_csv_file="training_tiled_inputs.csv"):
 
 if __name__ == '__main__':
     training_csv_file="training_tiled_inputs.csv"
-    #test_prepare_inputs(training_csv_file)
+    test_prepare_inputs(training_csv_file)
     #prepare_balanced_inputs(training_csv_file, "train.csv", "test.csv")
     #test_get_input_info()
     output_csv = "balanced_tiled_training.csv"
