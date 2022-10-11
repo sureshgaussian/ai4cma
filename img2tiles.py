@@ -16,7 +16,7 @@ def split_image_into_tiles(input_file, output_dir, tile_size=256):
     empty file concept introduced to reduce disk space usage
     """
 
-    empty_file = os.path.join(output_dir, "empty_tile.jpg")
+    empty_file = os.path.join(output_dir, "empty_tile.tif")
     empty_file = os.path.abspath(empty_file)
     tx =0
     ty=0
@@ -34,7 +34,7 @@ def split_image_into_tiles(input_file, output_dir, tile_size=256):
         for tx in range(0,xpatches):
             bb = (tx*tile_size, ty*tile_size, (tx+1)*tile_size, (ty+1)*tile_size)
             crop_img = img.crop(bb)
-            ext = "-"+str(tx)+"-"+str(ty)+".jpg"
+            ext = "-"+str(tx)+"-"+str(ty)+".tif"
             tfile = os.path.join(output_dir, os.path.splitext(filename)[0]+ext)
 
             if np.sum(crop_img) != 0:
@@ -106,7 +106,7 @@ def make_label_images(input_dir, input_file, label_file, output_dir, tile_size):
                 py = py + ly
             py = 0
             px = px+lx 
-        ext = "-"+label+".jpg"
+        ext = "-"+label+".tif"
         label_fname = os.path.join(output_dir, os.path.splitext(label_file)[0]+ext)
         new_img.save(label_fname)
         label_patterns.append(label_fname)
@@ -132,7 +132,7 @@ def make_label_pattern(input_file, label, label_bb, output_dir, tile_size):
             py = py + ly
         py = 0
         px = px+lx 
-    ext = "_"+label+".jpg"
+    ext = "_"+label+".tif"
     fname = os.path.basename(input_file)
     label_fname = os.path.join(output_dir, os.path.splitext(fname)[0]+ext)
     new_img.save(label_fname)
@@ -146,7 +146,7 @@ def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filen
     print(f'base_filename = {base_filename}, input_folder = {input_folder}')
     #lets parse the list of files
     files = os.path.join(input_folder,base_filename)
-    tile_files = glob.glob(files+"-*-*.jpg")
+    tile_files = glob.glob(files+"-*-*.tif")
     assert(len(tile_files) > 0)
     tfiles_info = []
     for tfile in tile_files:
