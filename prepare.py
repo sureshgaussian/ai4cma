@@ -5,12 +5,14 @@ import pandas as pd
 import csv 
 import os
 import glob
+import numpy as np
 from posixpath import splitext
 from config import (
     CHALLENGE_INP_DIR, 
     MINI_CHALLENGE_INP_DIR, 
     TILED_INP_DIR, INFO_DIR, TILE_SIZE,
-    INPUTS_DIR, MASKS_DIR, LEGENDS_DIR
+    INPUTS_DIR, MASKS_DIR, LEGENDS_DIR,
+    TRAIN_TEST_SPLIT_RATIO
 )
 import img2tiles
 import json
@@ -51,10 +53,11 @@ def prepare_inputs_from_json_files(json_files, input_dir, output_dir, tile_size=
         
         in_tiles = img2tiles.split_image_into_tiles(input_file, tinput_dir, tile_size)
         if in_tiles == None:
+            print(f'skipping {json_file} as there is no file')
             continue
 
         # prepare the label_pattern_tile for all labels
-        j_fname = os.path.basename(json_file)
+        # j_fname = os.path.basename(json_file)
         #label_patterns = img2tiles.make_label_images(input_dir, in_fname, j_fname, output_dir, tile_size)
 
 
@@ -71,9 +74,9 @@ def prepare_inputs_from_json_files(json_files, input_dir, output_dir, tile_size=
             
 
             #get the label.tif file
-            label_fname = os.path.splitext(j_fname)[0]+"_"+label+".tif"
-            label_input_file = os.path.join(input_dir, label_fname )
-            label_mask_tiles = img2tiles.split_image_into_tiles(label_input_file, label_mask_dir, tile_size)
+            label_fname = os.path.splitext(json_file)[0]+"_"+label+".tif"
+            # label_input_file = os.path.join(input_dir, label_fname )
+            label_mask_tiles = img2tiles.split_image_into_tiles(label_fname, label_mask_dir, tile_size)
 
             # for each label, get the label_pattern file
             label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, legend_pattern_dir, tile_size)
@@ -94,8 +97,9 @@ def prepare_inputs_from_csv(csv_file, input_dir, output_dir, tile_size=256, tile
                     tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
 
     df = pd.read_csv(csv_file)
-    input_files = df.inp_fname.unique()
-    json_files = [ os.path.join(input_dir, x.replace(".tif", ".json")) for x in input_files]
+    # input_files = df.inp_fname.unique()
+    # json_files = [ os.path.join(input_dir, x.replace(".tif", ".json")) for x in input_files]
+    json_files = df.filepath_name.to_list()
 
     #json_files = json_files[0:2]
 
@@ -266,37 +270,65 @@ def process_args(args):
             print(f'Creating the directory: {output_dir}')
             os.mkdir(output_dir)
         print(f'input directory = {input_dir}, output dir = {output_dir}')
+        csv_file = args.dataset+"_"+args.stage+"_split_files.csv"
+
         tile_size = int(args.tile_size)
         tiled_input_dir = INPUTS_DIR
         tiled_masks_dir = MASKS_DIR
         tiled_legends_dir = LEGENDS_DIR
-        input_descriptors = prepare_inputs(input_dir, output_dir, tile_size, 
+        input_csv_file = os.path.join(TILED_INP_DIR,INFO_DIR)
+        input_csv_file = os.path.join(input_csv_file, csv_file)
+        print(f" taking the inputs from: {input_csv_file}")
+        input_descriptors = prepare_inputs_from_csv(input_csv_file, input_dir, output_dir, tile_size, 
                                 tiled_input_dir, tiled_legends_dir, tiled_masks_dir)
+        
+        # TODO: push this into prepare function?
         csv_file_dir = os.path.join(output_dir, INFO_DIR)
         if not os.path.isdir(csv_file_dir):
             print(f'Creating the directory: {csv_file_dir}')
             os.mkdir(csv_file_dir)
+
+        
         csv_file = os.path.join(csv_file_dir, "all_tiles.csv")
         df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
 
         df.to_csv(csv_file, index=False)
         balanced_csv_files = os.path.join(csv_file_dir, "balanced_tiles.csv")
-        
-
 
 
     elif args.operation == 'get_input_info':
-        
         info_dir = os.path.join(TILED_INP_DIR, INFO_DIR)
-        output_csv = os.path.join(info_dir, args.dataset+"_"+args.stage+".csv")
+        output_csv = os.path.join(info_dir, args.dataset+"_"+args.stage+"_set.csv")
         print('getting info about the inputs in : ', input_dir, " into: ", output_csv)
         df = get_input_info(input_dir)
         df.to_csv(output_csv, index=False)
+
+    elif args.operation == 'train_test_split':
+        info_dir = os.path.join(TILED_INP_DIR, INFO_DIR)
+        ratio = TRAIN_TEST_SPLIT_RATIO
+        in_files = glob.glob(os.path.join(input_dir, '*.json'))
+        training_files = np.random.choice(in_files, size= int(ratio*len(in_files)), replace=False )
+        test_files = set(in_files) - set(training_files)
+
+        print(f'length of input files: {len(in_files)}, training len: {len(training_files)} , testing len: {len(test_files)}')
+        
+        df = pd.DataFrame(training_files, columns=['filepath_name'])
+        train_split_csv = os.path.join(info_dir, args.dataset+"_training_split_files.csv")
+        df.to_csv(train_split_csv, index=False)
+        #df['filename'] = df['filepath_name']
+        df = pd.DataFrame(test_files, columns=['filepath_name'])
+        test_split_csv = os.path.join(info_dir, args.dataset+"_testing_split_files.csv") 
+        df.to_csv( test_split_csv, index=False)
+        print(f'train_test_split operation on : {input_dir}, info written into: {info_dir} , in {train_split_csv} & {test_split_csv} files')
+
 
         
     else:
         print('unsupported operations')
         return 
+
+def prepare_file_train_test_split(input_desc_csv, ratio=0.8):
+    full_df = pd.read_csv(input_desc_csv)
 
 
 if __name__ == '__main__':
@@ -304,7 +336,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Prepare inputs parser')
     parser.add_argument('-s', '--stage', default='training', help='which stage? [training, testing, validation]')
     parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
-    parser.add_argument('-o', '--operation', default='prepare_inputs', help='operations:[prepare_inputs, get_input_info]')
+    parser.add_argument('-o', '--operation', default='train_test_split', help='operations:[prepare_inputs, get_input_info, train_test_split]')
     parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
     args = parser.parse_args()
     print (f'{args.stage, args.dataset, args.operation, args.tile_size}')

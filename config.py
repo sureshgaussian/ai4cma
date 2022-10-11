@@ -28,6 +28,7 @@ IMAGE_WIDTH = TILE_SIZE  # 1918 originally
 PIN_MEMORY = True
 LOAD_MODEL = True
 NUM_SAMPLES = None
+TRAIN_TEST_SPLIT_RATIO = 0.8
 
 #Ravi's experiments
 USE_MEDIAN_COLOR = True

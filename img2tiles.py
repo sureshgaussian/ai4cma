@@ -24,6 +24,7 @@ def split_image_into_tiles(input_file, output_dir, tile_size=256):
         img = Image.open( input_file)
     except:
         print(f"error in opening {input_file}")
+        print(f'yo yo yo')
         return None 
     xpatches = img.width // tile_size + 1
     ypatches = img.height // tile_size + 1
