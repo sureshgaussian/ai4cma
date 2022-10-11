@@ -12,7 +12,8 @@ from config import (
     MINI_CHALLENGE_INP_DIR, 
     TILED_INP_DIR, INFO_DIR, TILE_SIZE,
     INPUTS_DIR, MASKS_DIR, LEGENDS_DIR,
-    TRAIN_TEST_SPLIT_RATIO
+    TRAIN_TEST_SPLIT_RATIO,
+    EMPTY_TILES_RATIO
 )
 import img2tiles
 import json
@@ -97,9 +98,9 @@ def prepare_inputs_from_csv(csv_file, input_dir, output_dir, tile_size=256, tile
                     tiled_label_dir = "tiled_labels", tiled_mask_dir = "tiled_masks"):
 
     df = pd.read_csv(csv_file)
-    # input_files = df.inp_fname.unique()
-    # json_files = [ os.path.join(input_dir, x.replace(".tif", ".json")) for x in input_files]
-    json_files = df.filepath_name.to_list()
+    input_files = df.inp_fname.unique()
+    json_files = [ os.path.join(input_dir, x.replace(".tif", ".json")) for x in input_files]
+    # json_files = df.filepath_name.to_list()
 
     #json_files = json_files[0:2]
 
@@ -244,24 +245,28 @@ def old_main():
     prepare_balanced_empty_tiles(training_csv_file, output_csv)
 
 def process_args(args):
-    stages = ['training', 'testing', 'validation']
+    stages_dir = {
+        'training': "training",
+        'testing' : "training", 
+        'validation' : "validation"}
     switch_dataset = {
         'mini': MINI_CHALLENGE_INP_DIR,
         'challenge': CHALLENGE_INP_DIR,
     }
 
+
     assert( str(args.tile_size).isnumeric() )
 
-    if args.stage not in stages:
-        print('Undefined stage: ', args.stage, ' knowns stages: ', stages)
+    if args.stage not in stages_dir.keys():
+        print('Undefined stage: ', args.stage, ' knowns stages: ', stages_dir.keys())
         return 
     if args.dataset in switch_dataset.keys():
-        input_dir = switch_dataset[args.dataset] 
+        base_input_dir = switch_dataset[args.dataset] 
     else:
         print("Unsupported dataset: ", args.dataset, " chose from: ", switch_dataset.keys() )
         return
 
-    input_dir = os.path.join(input_dir, args.stage)
+    input_dir = os.path.join(base_input_dir, args.stage)
     
     if args.operation == 'prepare_inputs':
         print(f"preparing inputs for {args.stage} using dataset: {args.dataset}")
@@ -270,7 +275,11 @@ def process_args(args):
             print(f'Creating the directory: {output_dir}')
             os.mkdir(output_dir)
         print(f'input directory = {input_dir}, output dir = {output_dir}')
-        csv_file = args.dataset+"_"+args.stage+"_split_files.csv"
+
+        if args.stage == 'validation':
+            csv_file = args.dataset+"_"+args.stage+"_set.csv"
+        else:
+            csv_file = args.dataset+"_"+args.stage+"_split_files.csv"
 
         tile_size = int(args.tile_size)
         tiled_input_dir = INPUTS_DIR
@@ -279,6 +288,8 @@ def process_args(args):
         input_csv_file = os.path.join(TILED_INP_DIR,INFO_DIR)
         input_csv_file = os.path.join(input_csv_file, csv_file)
         print(f" taking the inputs from: {input_csv_file}")
+        # hack!!!
+        input_dir = os.path.join(base_input_dir, stages_dir[args.stage])
         input_descriptors = prepare_inputs_from_csv(input_csv_file, input_dir, output_dir, tile_size, 
                                 tiled_input_dir, tiled_legends_dir, tiled_masks_dir)
         
@@ -294,6 +305,7 @@ def process_args(args):
 
         df.to_csv(csv_file, index=False)
         balanced_csv_files = os.path.join(csv_file_dir, "balanced_tiles.csv")
+        prepare_balanced_empty_tiles(csv_file, balanced_csv_files, ratio=EMPTY_TILES_RATIO)
 
 
     elif args.operation == 'get_input_info':
@@ -305,20 +317,21 @@ def process_args(args):
 
     elif args.operation == 'train_test_split':
         info_dir = os.path.join(TILED_INP_DIR, INFO_DIR)
+        training_df = get_input_info(input_dir)
+        in_files = training_df.inp_fname.unique()
         ratio = TRAIN_TEST_SPLIT_RATIO
-        in_files = glob.glob(os.path.join(input_dir, '*.json'))
         training_files = np.random.choice(in_files, size= int(ratio*len(in_files)), replace=False )
         test_files = set(in_files) - set(training_files)
 
         print(f'length of input files: {len(in_files)}, training len: {len(training_files)} , testing len: {len(test_files)}')
         
-        df = pd.DataFrame(training_files, columns=['filepath_name'])
+        train_df = training_df[training_df.inp_fname.isin(training_files)]
         train_split_csv = os.path.join(info_dir, args.dataset+"_training_split_files.csv")
-        df.to_csv(train_split_csv, index=False)
+        train_df.to_csv(train_split_csv, index=False)
         #df['filename'] = df['filepath_name']
-        df = pd.DataFrame(test_files, columns=['filepath_name'])
+        test_df = training_df[training_df.inp_fname.isin(test_files)]
         test_split_csv = os.path.join(info_dir, args.dataset+"_testing_split_files.csv") 
-        df.to_csv( test_split_csv, index=False)
+        test_df.to_csv( test_split_csv, index=False)
         print(f'train_test_split operation on : {input_dir}, info written into: {info_dir} , in {train_split_csv} & {test_split_csv} files')
 
 
