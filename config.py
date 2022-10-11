@@ -1,21 +1,18 @@
 import os
 import torch
 
-CODE_DIR = '/home/suresh/challenges/ai4cma/code'
-DATA_DIR = '/home/suresh/challenges/ai4cma/data'
-IMG_DIR = os.path.join(DATA_DIR, 'short_inp/tiled_inputs')
-LABEL_DIR = os.path.join(DATA_DIR, 'short_inp/tiled_labels')
-MASK_DIR = os.path.join(DATA_DIR, 'short_inp/tiled_masks')
-TRAIN_DESC = os.path.join(CODE_DIR, "short_train.csv")
-VAL_DESC = os.path.join(CODE_DIR, "short_test.csv")
+# common paths (DO NOT CHANGE)
+CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/data'
+MINI_CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/mini_data'
+RESULTS_DIR = '/home/suresh/challenges/ai4cma/results'
 
-TEMP_DIR = os.path.join(CODE_DIR, "temp")
-INF_INP_DIR = os.path.join(DATA_DIR, "validation")
-#INF_INP_DIR = os.path.join(DATA_DIR, "crash")
-#INF_INP_DIR = os.path.join(DATA_DIR, "mini_validation")
-INF_TEMP_TILED_INP_DIR = os.path.join(TEMP_DIR, "tiled_inputs")
-INF_TEMP_TILED_OUT_DIR = os.path.join(TEMP_DIR, "tiled_outputs")
-INF_RESULTS_DIR = os.path.join(TEMP_DIR, "results")
+TILED_INP_DIR = "/home/suresh/challenges/ai4cma/tiled_inputs"
+INFO_DIR = "info"
+INPUTS_DIR = "inputs"
+MASKS_DIR = "masks"
+LEGENDS_DIR = "legends"
+
+
 INF_MODEL_PATH = "submission_v1_model.pth.tar"
 
 # Hyperparameters etc.

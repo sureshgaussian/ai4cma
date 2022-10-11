@@ -1,10 +1,17 @@
+import argparse
+from ast import operator 
 from cgitb import reset
 import pandas as pd
 import csv 
 import os
 import glob
 from posixpath import splitext
-from config import CODE_DIR, DATA_DIR, EDA_DIR
+from config import (
+    CHALLENGE_INP_DIR, 
+    MINI_CHALLENGE_INP_DIR, 
+    TILED_INP_DIR, INFO_DIR, TILE_SIZE,
+    INPUTS_DIR, MASKS_DIR, LEGENDS_DIR
+)
 import img2tiles
 import json
 
@@ -223,7 +230,7 @@ def test_prepare_inputs(training_csv_file="training_tiled_inputs.csv"):
     df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
     df.to_csv(training_csv_file, index=False)
 
-if __name__ == '__main__':
+def old_main():
     # training_csv_file="training_tiled_inputs.csv"
     training_csv_file= os.path.join(CODE_DIR, "test_tiled_inputs.csv")
     test_prepare_inputs(training_csv_file)
@@ -232,3 +239,74 @@ if __name__ == '__main__':
     output_csv = os.path.join(CODE_DIR, "balanced_tiled_test.csv")
     prepare_balanced_empty_tiles(training_csv_file, output_csv)
 
+def process_args(args):
+    stages = ['training', 'testing', 'validation']
+    switch_dataset = {
+        'mini': MINI_CHALLENGE_INP_DIR,
+        'challenge': CHALLENGE_INP_DIR,
+    }
+
+    assert( str(args.tile_size).isnumeric() )
+
+    if args.stage not in stages:
+        print('Undefined stage: ', args.stage, ' knowns stages: ', stages)
+        return 
+    if args.dataset in switch_dataset.keys():
+        input_dir = switch_dataset[args.dataset] 
+    else:
+        print("Unsupported dataset: ", args.dataset, " chose from: ", switch_dataset.keys() )
+        return
+
+    input_dir = os.path.join(input_dir, args.stage)
+    
+    if args.operation == 'prepare_inputs':
+        print(f"preparing inputs for {args.stage} using dataset: {args.dataset}")
+        output_dir = os.path.join(TILED_INP_DIR, args.dataset+ "_"+args.stage)
+        if not os.path.isdir(output_dir):
+            print(f'Creating the directory: {output_dir}')
+            os.mkdir(output_dir)
+        print(f'input directory = {input_dir}, output dir = {output_dir}')
+        tile_size = int(args.tile_size)
+        tiled_input_dir = INPUTS_DIR
+        tiled_masks_dir = MASKS_DIR
+        tiled_legends_dir = LEGENDS_DIR
+        input_descriptors = prepare_inputs(input_dir, output_dir, tile_size, 
+                                tiled_input_dir, tiled_legends_dir, tiled_masks_dir)
+        csv_file_dir = os.path.join(output_dir, INFO_DIR)
+        if not os.path.isdir(csv_file_dir):
+            print(f'Creating the directory: {csv_file_dir}')
+            os.mkdir(csv_file_dir)
+        csv_file = os.path.join(csv_file_dir, "all_tiles.csv")
+        df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
+
+        df.to_csv(csv_file, index=False)
+        balanced_csv_files = os.path.join(csv_file_dir, "balanced_tiles.csv")
+        
+
+
+
+    elif args.operation == 'get_input_info':
+        
+        info_dir = os.path.join(TILED_INP_DIR, INFO_DIR)
+        output_csv = os.path.join(info_dir, args.dataset+"_"+args.stage+".csv")
+        print('getting info about the inputs in : ', input_dir, " into: ", output_csv)
+        df = get_input_info(input_dir)
+        df.to_csv(output_csv, index=False)
+
+        
+    else:
+        print('unsupported operations')
+        return 
+
+
+if __name__ == '__main__':
+# prepare -s {training, testing, mini_training, validation}
+    parser = argparse.ArgumentParser(description='Prepare inputs parser')
+    parser.add_argument('-s', '--stage', default='training', help='which stage? [training, testing, validation]')
+    parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
+    parser.add_argument('-o', '--operation', default='prepare_inputs', help='operations:[prepare_inputs, get_input_info]')
+    parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
+    args = parser.parse_args()
+    print (f'{args.stage, args.dataset, args.operation, args.tile_size}')
+    process_args(args)
+    
