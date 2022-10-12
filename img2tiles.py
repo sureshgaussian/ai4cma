@@ -154,7 +154,7 @@ def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filen
         split_fname = os.path.splitext(split_fname)[0]
         tilex = int(split_fname.split("-")[-2])
         tiley = int(split_fname.split("-")[-1])
-        print(tfile, split_fname, tilex, tiley)
+        # print(tfile, split_fname, tilex, tiley)
         tfiles_info.append( (tfile, split_fname, tilex, tiley))
     #print(type(tfiles_info))
 
