@@ -1,3 +1,4 @@
+import argparse
 import rasterio 
 import numpy as np
 from PIL import Image
@@ -293,14 +294,9 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
     df.to_csv("inference_results.csv")
     return 
 
-def prepare_for_submission():
-    input_dir = INF_INP_DIR
-    tinp_dir = INF_TEMP_TILED_INP_DIR
-    tout_dir = INF_TEMP_TILED_OUT_DIR
-    tile_size = TILE_SIZE
-    results_dir = INF_RESULTS_DIR
+def prepare_for_submission(input_dir, tiled_inp_dir, tiled_out_dir, results_dir, tile_size):
     #create_legend_median_values(input_dir, output_json_file_name)
-    infer(input_dir, results_dir, tinp_dir, tout_dir, tile_size)
+    infer(input_dir, results_dir, tiled_inp_dir, tiled_out_dir, tile_size)
     #convert_mask_to_raster_tif("../data/mini_validation/CO_Elkhorn.tif", "./temp/results/CO_Elkhorn_Qal_poly.tif")
     shutil.make_archive('gaussiansolutionsteam', format='zip', root_dir=results_dir)
 
@@ -313,6 +309,42 @@ def test_one_mask():
     tiled_output_dir = INF_TEMP_TILED_OUT_DIR
     infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir)
 
+def process_args(args):
+
+    if args.dataset == 'mini':
+        base_dir = MINI_CHALLENGE_INP_DIR
+    elif args.dataset == 'challenge':
+        base_dir = CHALLENGE_INP_DIR
+    else:
+        print(f'unsupported dataset')
+        return
+    input_dir = os.path.join(base_dir, VALIDATION_DIR)
+    working_dir = os.path.join(WORKING_DIR, "validation")
+    vinp_dir = os.path.join(working_dir, "input")
+    vout_dir = os.path.join(working_dir, "output")
+    if not os.path.isdir(vinp_dir):
+        print(f'Creating the directory: {vinp_dir}')
+        os.mkdir(vinp_dir)
+    if not os.path.isdir(vout_dir):
+        print(f'Creating the directory: {vout_dir}')
+        os.mkdir(vout_dir)
+    
+    tile_size = TILE_SIZE
+    results_dir = os.path.join(RESULTS_DIR, VALIDATION_DIR)
+    print(f'Running inference with the following parameters')
+    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}')
+
+    prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
+
+    return 
+
+
+
 if __name__ == "__main__":
     #test_one_mask()
-    prepare_for_submission()
+    parser = argparse.ArgumentParser(description='Inference parser')
+    parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
+
+    args = parser.parse_args()
+    # prepare_for_submission()
+    process_args(args)

@@ -11,7 +11,9 @@ INFO_DIR = "info"
 INPUTS_DIR = "inputs"
 MASKS_DIR = "masks"
 LEGENDS_DIR = "legends"
+VALIDATION_DIR = "validation"
 
+WORKING_DIR = "/home/suresh/challenges/ai4cma/working_dir"
 
 INF_MODEL_PATH = "submission_v1_model.pth.tar"
 

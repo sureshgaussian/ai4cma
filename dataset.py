@@ -9,7 +9,7 @@ import cv2
 import pandas as pd
 import random
 import json
-from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
+# from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
     def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, use_median_color = False) -> None:
