@@ -1,3 +1,25 @@
+New Structure of the inputs organization:
+
+/home/suresh/challenges/ai4cma/data : has the full data from the challenge
+/home/suresh/challenges/ai4cma/mini_data: small subset to run pipeline, testing code etc 
+
+/home/suresh/challenges/ai4cma/tiled_inputs/ : base directory under which the tiled inputs exist
+    info/challenge_testing_split_files.csv: information about the files used in testing split for the full challenge dataset
+    info/challenge_training_split_files.csv: information about the files used in training split for the full challenge dataset
+    info/mini_testing (&training) split_files.csv: testing/training split files for mini_data set 
+    challenge_testing/ folder contains inputs necessary for testing the challenge testing data set 
+    challenge_training/ folder contains inputs necessary for testing the challenge training data set 
+    mini_testing/ folder contains inputs necessary for testing the mini testing data set 
+    mini_training/ folder contains inputs necessary for testing the mini training data set 
+        under these folders, the structure is:
+        info/all_tiles.csv : information about all the tiles of the inputs 
+        info/balanced_tiles.csv : balance for that set with empty_tiles at 0.6 ratio 
+        inputs/ folder containing the input files for the data set 
+        legends/ folder containing legends images filled to a tiled size
+        masks/ folder containing the tiled mask inputs for the data set 
+
+
+
 Inputs on October 9th
 ------------
 1. code/training_input_info.csv: the entire training data set provided by ai4cma challenge info captured
