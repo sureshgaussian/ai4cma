@@ -253,15 +253,26 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
 
         print(f'Working on {json_file}')
         in_tiles = img2tiles.split_image_into_tiles(input_file, temp_inp_dir, tile_size)
+        print(f'input num tiles = {len(in_tiles)}')
 
         if in_tiles == None:
             continue
         
+        
         with open(json_file) as jfile:
             label_info = json.load(jfile)
 
-        img_ht = label_info["imageHeight"]
-        img_wd = label_info["imageWidth"]
+        # img_ht = label_info["imageHeight"]
+        # img_wd = label_info["imageWidth"]
+        try:
+            img = Image.open( input_file)
+        except:
+            print(f"error in opening {input_file}")
+            print(f'yo yo yo')
+            return None 
+        img_wd = img.width 
+        img_ht = img.height
+        
 
         # split the label_masks into tiles
         for shape in label_info["shapes"]:
