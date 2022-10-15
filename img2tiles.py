@@ -114,7 +114,13 @@ def make_label_images(input_dir, input_file, label_file, output_dir, tile_size):
     return label_patterns
     
 def make_label_pattern(input_file, label, label_bb, output_dir, tile_size):
-    img = Image.open( input_file)
+
+    try:
+        img = Image.open( input_file)
+    except:
+        print(f"error in opening {input_file}")
+        print(f'yo yo yo')
+        return None 
     width = img.width
     height = img.height
     new_img = Image.new('RGB', (tile_size, tile_size))

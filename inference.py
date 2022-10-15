@@ -1,4 +1,7 @@
+import ast 
 import argparse
+import csv
+from matplotlib.pyplot import legend
 import rasterio 
 import numpy as np
 from PIL import Image
@@ -226,6 +229,56 @@ def infer_lines(input_file, points,output_file, save_as_tiff=True ):
     if save_as_tiff:
         convert_mask_to_raster_tif(input_file, output_file)        
 
+def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
+
+    model, device = setup_inference()
+
+    prev_in_fname = "XSASDASDFNAJS"
+    inputs = pd.read_csv(descr_csv_file)
+    # inp_fname,mask_fname,label,legend_type,width,height,points
+    # validation_info = []
+
+    #check if validation output csv exists.
+    
+    for idx, row in inputs.iterrows():
+        in_file_name = row['inp_fname']
+        input_file = os.path.join(input_dir, in_file_name)
+
+        # to avoid splitting the same input file into tiles for each label
+        if in_file_name != prev_in_fname:
+            in_tiles = img2tiles.split_image_into_tiles(input_file, temp_inp_dir, tile_size)
+            prev_in_fname = in_file_name
+            
+        if in_tiles is None:
+            continue
+
+        legend_type = row['legend_type']
+        label = row['label']
+        points = ast.literal_eval(row.points)
+        img_ht = row['height']
+        img_wd = row['width']
+
+        label_fname = os.path.splitext(in_file_name)[0]+"_"+label+".tif"
+        label_fname = os.path.basename(label_fname)
+        output_file = os.path.join(results_dir, label_fname)
+        label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, temp_inp_dir, tile_size)
+
+        if legend_type == "poly":
+            infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
+                legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
+        else:
+            if legend_type == "pt":
+                infer_points(input_file, points, output_file, save_as_tiff)
+            else:
+                assert(legend_type == "line")
+                infer_lines(input_file, points, output_file, save_as_tiff)
+        # validation_info.append([in_file_name, img_ht, img_wd, legend_type, label_fname])
+
+
+
+    return
+
+
 def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
     # input_info_df = get_input_info(input_dir=input_dir)
     # check if the directories exist
@@ -305,6 +358,15 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
     df.to_csv("inference_results.csv")
     return 
 
+
+def prepare_for_submission_from_csv(csv_file, input_dir, tiled_inp_dir, tiled_out_dir, results_dir, tile_size):
+    #create_legend_median_values(input_dir, output_json_file_name)
+    infer_from_csv(csv_file, input_dir, results_dir, tiled_inp_dir, tiled_out_dir, tile_size)
+    #convert_mask_to_raster_tif("../data/mini_validation/CO_Elkhorn.tif", "./temp/results/CO_Elkhorn_Qal_poly.tif")
+    shutil.make_archive('gaussiansolutionsteam', format='zip', root_dir=results_dir)
+
+    return 
+
 def prepare_for_submission(input_dir, tiled_inp_dir, tiled_out_dir, results_dir, tile_size):
     #create_legend_median_values(input_dir, output_json_file_name)
     infer(input_dir, results_dir, tiled_inp_dir, tiled_out_dir, tile_size)
@@ -345,7 +407,9 @@ def process_args(args):
     print(f'Running inference with the following parameters')
     print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}')
 
-    prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
+    # prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
+    csv_file = "../tiled_inputs/info/remaining_validation_files.csv"
+    prepare_for_submission_from_csv(csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size)
 
     return 
 

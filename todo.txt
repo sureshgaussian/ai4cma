@@ -18,8 +18,19 @@ New Structure of the inputs organization:
         legends/ folder containing legends images filled to a tiled size
         masks/ folder containing the tiled mask inputs for the data set 
 
+Folders already have required files populated by Suresh.
+
+If any time you need to redo the inputs, use the following commands (shown on mini dataset. 
+    change mini to challenge for the entire challenge data set):
+
+    python prepare.py -o prepare_inputs -d mini -s training 
 
 
+Problems faced:
+1. AK_Kechumstuk.tif failed with 'Killed': 
+    - conjecture: this was due to swap space issues
+2. Trend_2007_fig6_2.json file has wrong image height and width 
+3. /home/suresh/challenges/ai4cma/data/validation/DMEA2328_OldLeydenMine_CO.tif : crashes
 Inputs on October 9th
 ------------
 1. code/training_input_info.csv: the entire training data set provided by ai4cma challenge info captured

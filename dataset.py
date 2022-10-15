@@ -151,6 +151,10 @@ class CMAInferenceDataset(Dataset):
         #Preprocess label based on using the median value
         if self.use_median_color:
             rgb = self.legend_data[reqd_row["label_pattern_fname"].split('.')[0]]
+            if len(rgb) == 1:
+                trgb = rgb*3
+                rgb = trgb 
+                assert(len(rgb) == 3)
 
             # Check if the median value matches with the image patch
             rgbArray = np.zeros(image.shape, 'uint8')
