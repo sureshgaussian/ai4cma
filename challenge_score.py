@@ -10,7 +10,7 @@ from joblib import Parallel, delayed
 import math
 import json
 
-def overlap_distance_calculate(mat_true, mat_pred, min_valid_range=10, parallel_workers=1):
+def overlap_distance_calculate(mat_true, mat_pred, min_valid_range=.1, parallel_workers=1):
     """
     mat_true, mat_pred: 2d matrices, with 0s and 1s only
     min_valid_range: the maximum distance in % of the largest size of the image (diagonal)
@@ -72,8 +72,7 @@ def overlap_distance_calculate(mat_true, mat_pred, min_valid_range=10, parallel_
     
     return lowest_dist_pairs
 
-
-def detect_difficult_pixels(map_image, binary_raster, legend_coor, plot=True, set_false_as='hard'):
+def detect_difficult_pixels(map_image, binary_raster, legend_coor, plot=True, set_false_as='hard', color_range=4, baseline_raster=None):
     """
     map_image: the image array for the map image
     binary_raster: 2D array of any channel (out of 3 present) from the true binary raster image 
@@ -86,16 +85,16 @@ def detect_difficult_pixels(map_image, binary_raster, legend_coor, plot=True, se
         
     # detect pixels based on color of legend
     if legend_coor is not None:
-        pred_by_color=match_by_color(map_image.copy(), legend_coor, color_range=20)
+        print('running baseline...')
+        pred_by_color=match_by_color(map_image.copy(), legend_coor, color_range=color_range, plot=plot)
         if plot:
-            print('predicted based on color of legend:')
+            print('prediction based on color of legend:')
             plt.imshow(pred_by_color)
-            plt.show()
-            
+            plt.show()    
     pred_by_color=(1-pred_by_color).astype(int) # flip, so the unpredicted become hard pixels
     pred_by_color=binary_raster*pred_by_color # keep only the part within the true polygon
     if plot:
-        print('hard pixel (flipped predictions) using the color predictions (in the polygon range):')
+        print('flipped color predictions (the non-predicted will be hard pixels), within in the polygon range:')
         plt.imshow(pred_by_color)
         plt.show()
     
@@ -112,6 +111,7 @@ def detect_difficult_pixels(map_image, binary_raster, legend_coor, plot=True, se
         plt.show()
 
     return final_hard_pixels
+
 
 def match_by_color(img, legend_coor, color_range=20):
     """
@@ -140,29 +140,83 @@ def match_by_color(img, legend_coor, color_range=20):
     pred_by_color = img_bw.astype(float) / 255
     return pred_by_color
 
-def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, legend_json_path=None, min_valid_range=.25,
-                      difficult_weight=.7, set_false_as='hard', plot=True):
+def match_by_color(img, legend_coor, color_range=4, plot=False):
+    """
+    img: the image array for the map image
+    legend_coor: coordinate for the legend feature, from the legend json file
+    """
+    # get the legend coors and the predominant color
+    (x_min, y_min), (x_max, y_max) = legend_coor            
+    legend_img = img[int(y_min):int(y_max), int(x_min):int(x_max)]
+    if plot:
+        print('legend feature:')
+        plt.imshow(legend_img)
+        plt.show()
+    # take the median of the colors to find the predominant color
+    r=int(np.median(legend_img[:,:,0]))
+    g=int(np.median(legend_img[:,:,1]))
+    b=int(np.median(legend_img[:,:,2]))
+    sought_color=[r, g, b]
+    # capture the variations of legend color due to scanning errors
+    lower = np.array(sought_color)-color_range
+    lower[lower<0] = 0
+    lower=tuple(lower.tolist())
+    upper = np.array(sought_color)+color_range
+    upper[upper>255] = 255
+    upper=tuple(upper.tolist())
+    print('matching the color:', sought_color, 'with color range:', color_range, ', lower:', lower, 'upper:', upper)
+    # create a mask to only preserve current legend color in the basemap
+    pred_by_color = cv2.inRange(img, lower, upper)/255
+
+    return pred_by_color
+
+def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, legend_json_path=None, min_valid_range=.1,
+                      difficult_weight=.7, set_false_as='hard', plot=True, color_range=4, parallel_workers=1):
     
     """
     map_image_path: path to the the actual map image
     predicted_raster_path: path to the the predicted binary raster image 
     true_raster_path: path to the the true binary raster image 
     legend_json_path: (only used for polygons) path to the json containing the coordinates for the corresponding legend (polygon) feature
-    min_valid_range: (only used for points and lines) the maximum distance in % of the largest length in the image i.e. the diagonal
+    min_valid_range: (only used for points and lines) the maximum distance in % of the largest size of the image (diagonal)
         between a predicted pixel vs. a true one that will be considered
         as valid to include in the scoring.
     difficult_weight: (only used for polygons) float within [0, 1], weight for the difficlut pixels in the scores (only for polygins)
     set_false_as: (only used for polygons) when set to 'hard' the pixels that are not within the true polygon area will be considered hard
     """
-     
-    img=cv2.imread(map_image_path)
-    img=cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
+
     true_raster=cv2.imread(true_raster_path)
     true_raster=true_raster[:,:,0]
     
     predicted_raster=cv2.imread(predicted_raster_path)
-    predicted_raster=predicted_raster[:,:,0]
+    if len(predicted_raster.shape)==3
+        predicted_raster=predicted_raster[:,:,0]
+    elif len(predicted_raster.shape)==2:
+        predicted_raster=predicted_raster
+    else:
+        print('predicted_raster shape is not 3 or 2!!!')
+        raise ValueError
+    
+    for item in np.unique(predicted_raster):
+        if int(item) not in [0, 1, 255]:
+            print('value in predicted raster:', int(item), 'not in permissible values:', [0, 1, 255])
+            raise ValueError
+    
+    predicted_raster[predicted_raster==255] = 1
+    
+    
+    extention=os.path.basename(true_raster_path).split('.')[-1]
+    
+    legend_feature=os.path.basename(true_raster_path).replace(os.path.basename(map_image_path).replace('.'+extention, '')+'_', '').replace('.'+extention, '')
+    feature_type=legend_feature.split('_')[-1]
+    print('feature type:', feature_type)
+    
+    start=datetime.now()
+    if plot or feature_type =='poly':
+        img=cv2.imread(map_image_path)
+        # img=cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    print('time check 1:', datetime.now()-start)
     
     # plot: overlay the true and predicted values on the map image
     if plot:
@@ -171,88 +225,98 @@ def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, leg
             cv2.circle(im_copy, (center[1], center[0]), 1, (0,255,0), -1) # green
         print('Predicted raster overlayed on map image:')
         plt.rcParams["figure.figsize"] = (15,22)
-        # plt.imshow(im_copy)
-        # plt.show()
+        plt.imshow(im_copy)
+        plt.show()
         im_copy=img.copy()
         for center in np.argwhere(true_raster==1):
             cv2.circle(im_copy, (center[1], center[0]), 1, (255,0,0), -1) # red
         print('True raster overlayed on map image:')
-        # plt.imshow(im_copy)
-        # plt.show()
+        plt.imshow(im_copy)
+        plt.show()
     
-    
-    legend_feature=os.path.basename(true_raster_path).replace(os.path.basename(map_image_path).replace('.tif', '')+'_', '').replace('.tif', '')
-    feature_type=legend_feature.split('_')[-1]
-    print('feature type:', feature_type)
-    
+    start=datetime.now()
     legend_coor=None
+    print('looking for legend_feature in the json:', legend_feature)
     if legend_json_path is not None:
         legends=json.loads(open(legend_json_path, 'r').read())
         for shape in legends['shapes']:
             if legend_feature ==shape['label']:
-                legend_coor=legends['shapes'][0]['points']
+                legend_coor=shape['points']
         print('legend_coor:', legend_coor)
+    print('time check 2:', datetime.now()-start)
     
     mat_true, mat_pred=true_raster, predicted_raster
                        
     if feature_type in ['line', 'pt']: # for point and lines
         lowest_dist_pairs=overlap_distance_calculate(mat_true, mat_pred,
-                                                     min_valid_range=min_valid_range)
+                                                     min_valid_range=min_valid_range, parallel_workers=parallel_workers)
         print('len(lowest_dist_pairs):', len(lowest_dist_pairs))
         sum_of_similarities=sum([1-item[1] for item in lowest_dist_pairs])
         print('sum_of_similarities:', sum_of_similarities)
         print('num all pixel pred:', len(np.argwhere(mat_pred==1)))
         print('num all pixel true:', len(np.argwhere(mat_true==1)))
-        precision=sum_of_similarities/len(np.argwhere(mat_pred==1))
-        recall=sum_of_similarities/len(np.argwhere(mat_true==1))
+        
+        num_mat_pred=np.sum(mat_pred) 
+        num_mat_true=np.sum(mat_true)
+        precision=sum_of_similarities/num_mat_pred if num_mat_pred!=0 else 0.0
+        recall=sum_of_similarities/num_mat_true if num_mat_true!=0 else 0.0
+        
     else: # for polygon
         
+        start=datetime.now()
         overlap=mat_true*mat_pred
-        num_overlap=len(np.argwhere(overlap==1))
-        print('num_overlap:', num_overlap)
-        num_mat_pred=len(np.argwhere(mat_pred==1))
-        print('num_mat_pred:', num_mat_pred)
-        num_mat_true=len(np.argwhere(mat_true==1))
-        print('num_mat_true:', num_mat_true)
-        
+        print('time check 3:', datetime.now()-start)
+
         if difficult_weight is not None:
             
-            difficult_pixels=detect_difficult_pixels(img, true_raster, legend_coor=legend_coor, set_false_as=set_false_as, plot=plot)
+            start=datetime.now()
+            difficult_pixels=detect_difficult_pixels(img, true_raster, legend_coor=legend_coor, set_false_as=set_false_as, plot=plot,
+                                                    color_range=color_range)
+            print('time check 4:', datetime.now()-start)
             
-            num_overlap_difficult=len(np.argwhere((overlap*difficult_pixels)==1))
+            start=datetime.now()
+            difficult_overlap=overlap*difficult_pixels
+            num_overlap_difficult=np.sum(difficult_overlap) 
             print('num_overlap_difficult:', num_overlap_difficult)
-            num_overlap_easy=len(np.argwhere((overlap-(overlap*difficult_pixels))==1))
+            num_overlap_easy=np.sum(overlap-difficult_overlap) 
             print('num_overlap_easy:', num_overlap_easy)
             points_from_overlap=(num_overlap_difficult*difficult_weight)+(num_overlap_easy*(1-difficult_weight))
             print('points_from_overlap:', points_from_overlap)
             
-            num_mat_pred_difficult=len(np.argwhere((mat_pred*difficult_pixels)==1))
+            pred_difficult=mat_pred*difficult_pixels
+            num_mat_pred_difficult=np.sum(pred_difficult) 
             print('num_mat_pred_difficult:', num_mat_pred_difficult)
-            num_mat_pred_easy=len(np.argwhere((mat_pred-(mat_pred*difficult_pixels))==1))
+            num_mat_pred_easy=np.sum(mat_pred-pred_difficult) 
             print('num_mat_pred_easy:', num_mat_pred_easy)
             total_pred=(num_mat_pred_difficult*difficult_weight)+(num_mat_pred_easy*(1-difficult_weight))
             print('total prediction points contended:', total_pred)
-            precision=points_from_overlap/total_pred
+            precision=points_from_overlap/total_pred if total_pred!=0 else 0.0
             
-
-            num_mat_true_difficult=len(np.argwhere((mat_true*difficult_pixels)==1))
+            
+            true_difficult=mat_true*difficult_pixels
+            num_mat_true_difficult=np.sum(true_difficult) 
             print('num_mat_true_difficult:', num_mat_true_difficult)
-            num_mat_true_easy=len(np.argwhere((mat_true-(mat_true*difficult_pixels))==1))
+            num_mat_true_easy= np.sum(mat_true-true_difficult) 
             print('num_mat_true_easy:', num_mat_true_easy)
             total_true=(num_mat_true_difficult*difficult_weight)+(num_mat_true_easy*(1-difficult_weight))
             print('total true points to be had:', total_true)
-            recall=points_from_overlap/total_true
+            recall=points_from_overlap/total_true if total_true!=0 else 0.0
+            print('time check 5:', datetime.now()-start)
         
         else:
-            precision=num_overlap/num_mat_pred
-            recall=num_overlap/num_mat_true
+            num_overlap=np.sum(overlap) 
+            print('num_overlap:', num_overlap)
+            num_mat_pred=np.sum(mat_pred)
+            print('num_mat_pred:', num_mat_pred)
+            num_mat_true=np.sum(mat_true)
+            print('num_mat_true:', num_mat_true)
+
+            precision=num_overlap/num_mat_pred if num_mat_pred!=0 else 0.0
+            recall=num_overlap/num_mat_true if num_mat_true!=0 else 0.0
         
     
     # calculate f-score
-    if precision+recall!=0:
-        f_score=(2 * precision * recall) / (precision + recall)
-    else:
-        f_score=0
+    f_score=(2 * precision * recall) / (precision + recall) if precision+recall!=0 else 0.0
 
     return precision, recall, f_score
 
@@ -266,9 +330,6 @@ def test_feature_f1():
             true_raster_path=true_raster_image, legend_json_path=legend_json_path)
     print(precision, recall, f_score)
     return
-
-def return_list():
-    return [1,2,3,4]
 
 
 def calculate_score(info_csv):
