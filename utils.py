@@ -8,9 +8,13 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-def save_checkpoint(state, filename="./temp/my_checkpoint.pth.tar"):
+def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
+    checkpoint = {
+        "state_dict": model.state_dict(),
+        "optimizer":optimizer.state_dict(),
+    }
     print(f"=> Saving checkpoint to {filename}")
-    torch.save(state, filename)
+    torch.save(checkpoint, filename)
 
 def load_checkpoint(checkpoint_path, model):
     print(f"=> Loading checkpoint from {checkpoint_path}")
@@ -30,7 +34,8 @@ def get_loaders(
     num_workers=4,
     pin_memory=True,
     num_samples = None,
-    use_median_color = False
+    use_median_color = False,
+    persistent_workers = False
 ):
     train_ds = CMADataset(
         image_dir=train_img_dir,
@@ -47,6 +52,7 @@ def get_loaders(
         num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=True,
+        persistent_workers=persistent_workers
     )
     # how is this possible?
     val_ds = CMADataset(
@@ -63,18 +69,22 @@ def get_loaders(
         num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=False,
+        persistent_workers=persistent_workers
     )
 
     return train_loader, val_loader
 
-def check_accuracy(loader, model, device="cuda"):
+def check_accuracy(loader, model, device="cuda", num_batches = 50):
     num_correct = 0
     num_pixels = 0
     dice_score = 0
     model.eval()
 
+    if num_batches == 'all':
+        num_batches = len(loader)
+
     with torch.no_grad():
-        for x, y in loader:
+        for batch_ix, (x, y) in enumerate(loader):
             x = x.to(device, dtype=torch.float)
             y = y.to(device).unsqueeze(1)
             preds = torch.sigmoid(model(x)['out'])
@@ -84,8 +94,10 @@ def check_accuracy(loader, model, device="cuda"):
             dice_score += (2 * (preds * y).sum()) / (
                 (preds + y).sum() + 1e-8
             )
+            if batch_ix == num_batches:
+                break
 
-    print(f"Dice score: {dice_score/len(loader)}")
+    print(f"Dice score: {dice_score/num_batches}")
     model.train()
 
 def save_predictions_as_imgs(
@@ -107,7 +119,7 @@ def save_predictions_as_imgs(
         #     preds, f"{folder}/pred_{idx}_{EXP_NAME}.png"
         # )
         # torchvision.utils.save_image(y.unsqueeze(1).float(), f"{folder}/{idx}.png")
-        if idx == 5:
+        if idx == 15:
             break
     # set model back to training mode
     model.train()

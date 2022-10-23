@@ -57,7 +57,7 @@ def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
         if i % 10 == 9:
             running_loss += loss.item()
             last_loss = running_loss / 10 # loss per batch
-            print('  batch {} loss: {}'.format(i + 1, last_loss))
+            print(f"epoch {epoch_index}  batch {i + 1}/{len(loader)} loss: {last_loss}")
             # tb_x = epoch_index * len(loader) + i + 1
             # tb_writer.add_scalar('Loss/train', last_loss, tb_x)
             running_loss = 0.
@@ -81,14 +81,14 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(
-        IMG_DIR,
-        LABEL_DIR,
-        MASK_DIR,
+        TRAIN_IMG_DIR,
+        TRAIN_LABEL_DIR,
+        TRAIN_MASK_DIR,
         TRAIN_DESC,
-        IMG_DIR,
-        LABEL_DIR,
-        MASK_DIR,
-        VAL_DESC,
+        TEST_IMG_DIR,
+        TEST_LABEL_DIR,
+        TEST_MASK_DIR,
+        TEST_DESC,
         BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
@@ -114,11 +114,7 @@ def main():
         # if epoch_index % 10 == 9:
 
         # save model
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer":optimizer.state_dict(),
-        }
-        save_checkpoint(checkpoint, CHEKPOINT_PATH)
+        save_checkpoint(model, optimizer, CHEKPOINT_PATH)
 
         # check accuracy
         check_accuracy(train_loader, model, device=DEVICE)
@@ -136,31 +132,36 @@ def main():
                 
 
 def test_save_predictions():
-    model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+    model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
+    model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
+    if torch.cuda.is_available():
+        model.cuda()
+    # model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
     load_checkpoint(CHEKPOINT_PATH, model)
     train_loader, val_loader = get_loaders(
-        IMG_DIR,
-        LABEL_DIR,
-        MASK_DIR,
+        TRAIN_IMG_DIR,
+        TRAIN_LABEL_DIR,
+        TRAIN_MASK_DIR,
         TRAIN_DESC,
-        IMG_DIR,
-        LABEL_DIR,
-        MASK_DIR,
-        VAL_DESC,
+        TEST_IMG_DIR,
+        TEST_LABEL_DIR,
+        TEST_MASK_DIR,
+        TEST_DESC,
         BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
         NUM_SAMPLES,
-        USE_MEDIAN_COLOR
+        USE_MEDIAN_COLOR,
+        PERSISTANT_WORKERS
     )
 
-    check_accuracy(val_loader, model, device=DEVICE)
+    # check_accuracy(val_loader, model, device=DEVICE, num_batches='all')
     
-    # save_predictions_as_imgs(
-    #         val_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
-    #     )
+    save_predictions_as_imgs(
+            val_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+        )
 
 
 if __name__ == "__main__":
-    main()
-    # test_save_predictions()
+    # main()
+    test_save_predictions()

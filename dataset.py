@@ -12,24 +12,28 @@ import json
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
-    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, use_median_color = False) -> None:
+    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, use_median_color = False, legend_type = None) -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir
         self.mask_dir = mask_dir
-        
         self.input_desc = input_desc
-
         self.use_median_color = use_median_color
+        self.legend_type = legend_type
+
         if self.use_median_color:
             self.load_legend_median_values()
             input_df = pd.read_csv(self.input_desc)
+            #Discard invalid legends (legends with zero area)
             input_df['stripped'] = input_df['tile_legend'].apply(lambda x : x.split('.')[0])
             input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
             input_df = input_df.reset_index(drop=True)
             self.input_df = input_df
         else:
             self.input_df = pd.read_csv(self.input_desc)
+
+        # if self.legend_type == 'pt':
+        #     self.input_df = self.input_df[self.input_df['tile_legend'].str.contains(self.legend_type)]
 
         if num_samples:
             sample_org_files = self.input_df['orig_file'].unique()[:num_samples]
