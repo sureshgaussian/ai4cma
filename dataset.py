@@ -9,6 +9,8 @@ import cv2
 import pandas as pd
 import random
 import json
+
+from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
@@ -20,6 +22,7 @@ class CMADataset(Dataset):
         self.input_desc = input_desc
         self.use_median_color = use_median_color
         self.legend_type = legend_type
+        self.debug = False
 
         if self.use_median_color:
             self.load_legend_median_values()
@@ -67,7 +70,8 @@ class CMADataset(Dataset):
             rgbArray[..., 0] = rgb[0]
             rgbArray[..., 1] = rgb[1]
             rgbArray[..., 2] = rgb[2]
-            # cv2.imshow('rgb', rgbArray)
+            if self.debug:
+                imshow_r('rgb', rgbArray, True)
 
             # median_encoded = ((rgb[0] + 1) + (rgb[1]+1)*256 + (rgb[2]+1)*256*256)/256.0**3
             # print(median_encoded)
@@ -81,19 +85,17 @@ class CMADataset(Dataset):
 
         label_mask = np.array(Image.open(mask_path).convert("L"))
 
-        #image = np.expand_dims(image, axis=-1)
-        #label = np.expand_dims(label, axis=-1)
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
+        if self.debug:
+            imshow_r('Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+
         input = np.dstack((image, label))
 
         # Scaling is done seperately for image and mask. Hence we dont need this. 
         # input = input/255.0
 
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
         input= np.moveaxis(input, -1, 0)
         # label_mask= np.moveaxis(label_mask, -1, 0)
 
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
         return input, label_mask
 
     def load_legend_median_values(self):
@@ -101,7 +103,6 @@ class CMADataset(Dataset):
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
         self.legend_data = legend_data
-
 
 
 class CMAInferenceDataset(Dataset):
