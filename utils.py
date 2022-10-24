@@ -7,6 +7,7 @@ from config import *
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+from utils_show import imshow_r, to_rgb
 
 def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
     checkpoint = {
@@ -43,7 +44,7 @@ def get_loaders(
         mask_dir=train_mask_dir,
         input_desc=train_desc,
         num_samples=num_samples,
-        use_median_color=use_median_color
+        use_median_color=use_median_color,
     )
 
     train_loader = DataLoader(
@@ -69,17 +70,15 @@ def get_loaders(
         num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=False,
-        persistent_workers=persistent_workers
+        persistent_workers=persistent_workers,
     )
 
     return train_loader, val_loader
 
 def check_accuracy(loader, model, device="cuda", num_batches = 50):
-    num_correct = 0
-    num_pixels = 0
-    dice_score = 0
-    model.eval()
 
+    batch_dice_scores = []
+    model.eval()
     if num_batches == 'all':
         num_batches = len(loader)
 
@@ -89,16 +88,22 @@ def check_accuracy(loader, model, device="cuda", num_batches = 50):
             y = y.to(device).unsqueeze(1)
             preds = torch.sigmoid(model(x)['out'])
             preds = (preds > 0.5).float()
-            num_correct += (preds == y).sum()
-            num_pixels += torch.numel(preds)
-            dice_score += (2 * (preds * y).sum()) / (
+            batch_dice_scores.append((2 * (preds * y).sum()) / (
                 (preds + y).sum() + 1e-8
-            )
+            ))
             if batch_ix == num_batches:
                 break
 
-    print(f"Dice score: {dice_score/num_batches}")
+    dice_avg = torch.mean(torch.tensor(batch_dice_scores))
+    dice_std = torch.std(torch.tensor(batch_dice_scores))
+    dice_median = torch.median(torch.tensor(batch_dice_scores))
+
+    print(f"Dice score average: {dice_avg}")
+    print(f"Dice score std : {dice_std}")
+    print(f"Dice score median : {dice_median}")
+    
     model.train()
+    return dice_avg, dice_std, dice_median
 
 def save_predictions_as_imgs(
     loader, model, folder="saved_images/", device="cuda"
@@ -112,13 +117,6 @@ def save_predictions_as_imgs(
             preds = (preds > 0.5).float()
         overlays = draw_contours(x, preds, y)
         cv2.imwrite(f"{folder}/pred_{idx}_{EXP_NAME}.png", overlays)
-        # torchvision.utils.save_image(
-        #     overlays, f"{folder}/pred_{idx}_{EXP_NAME}.png"
-        # )
-        # torchvision.utils.save_image(
-        #     preds, f"{folder}/pred_{idx}_{EXP_NAME}.png"
-        # )
-        # torchvision.utils.save_image(y.unsqueeze(1).float(), f"{folder}/{idx}.png")
         if idx == 15:
             break
     # set model back to training mode
@@ -136,7 +134,7 @@ def merge_images(image_batch, size):
     return img
 
 def draw_contours(img_batch, pred_batch, target_batch):
-    img_batch = ((img_batch*255).detach().cpu().numpy()).astype('uint8')
+    img_batch = (img_batch.detach().cpu().numpy()*255).astype('uint8')
     pred_batch = (pred_batch.detach().cpu().numpy()*255).astype('uint8')
     target_batch = (target_batch.detach().cpu().numpy()*255).astype('uint8')
     overlays = []
@@ -166,3 +164,27 @@ def draw_contours(img_batch, pred_batch, target_batch):
     im_merged = merge_images(overlays, [2,8])
 
     return im_merged*255
+
+def draw_contours_big(img_path, pred_path, target_path):
+    
+    img = cv2.imread(img_path, 0)
+    img = to_rgb(img)
+    pred = cv2.imread(pred_path, 0)
+    target = cv2.imread(target_path, 0)
+
+    pred_contours = cv2.findContours(pred, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
+    cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 20)
+
+    target_contours = cv2.findContours(target, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
+    cv2.drawContours(img, target_contours, -1, (0, 255, 0), 20)
+
+    imshow_r('overlay', img, True)
+    
+
+if __name__ == '__main__':
+    img_path = '/home/suresh/challenges/ai4cma/data/training/AK_Bettles.tif'
+    pred_path = '/home/suresh/challenges/ai4cma/data/training/AK_Bettles_ak_poly.tif'
+    target_path = '/home/suresh/challenges/ai4cma/data/training/AK_Bettles_al_poly.tif'
+
+    
+    draw_contours_big(img_path, pred_path, target_path)
