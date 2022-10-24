@@ -24,7 +24,10 @@ from dice_loss import (
     GDiceLossV2
 )
 
-def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
+
+def train_fn(epoch_index, loader, test_loader, model, optimizer, loss_fn, scaler):
     # print(f'In train function')
     # loop = tqdm(loader)
     running_loss = 0.
@@ -61,7 +64,34 @@ def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
             # tb_x = epoch_index * len(loader) + i + 1
             # tb_writer.add_scalar('Loss/train', last_loss, tb_x)
             running_loss = 0.
-    
+            
+
+        # Write to tensorboard every 1000th step
+        if i % 500 == 499:
+
+            global_step_index = epoch_index*len(loader) + i
+            writer.add_scalar(f"train_loss", last_loss, global_step_index)
+
+            train_dice_avg, train_dice_std, train_dice_median = check_accuracy(loader, model, device=DEVICE)
+            writer.add_scalar(f"train_dice_avg", train_dice_avg, global_step_index)
+            writer.add_scalar(f"train_dice_std", train_dice_std, global_step_index)
+            writer.add_scalar(f"train_dice_median", train_dice_median, global_step_index)
+
+            test_dice_avg, test_dice_std, test_dice_median = check_accuracy(test_loader, model, device=DEVICE)
+            writer.add_scalar(f"test_dice_avg", test_dice_avg, global_step_index)
+            writer.add_scalar(f"test_dice_std", test_dice_std, global_step_index)
+            writer.add_scalar(f"test_dice_median", test_dice_median, global_step_index)
+
+            writer.flush()
+
+        # Save checkpoint every 5k step
+        if i % 5000 == 4999:
+            CHEKPOINT_PATH_epoch_path = CHEKPOINT_PATH.replace('.pth.tar', f"_epoch_{epoch_index:02d}_step_{i:05d}.pth.tar")
+            save_checkpoint(model, optimizer, CHEKPOINT_PATH_epoch_path)
+            save_predictions_as_imgs(
+                test_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+            )
+
     return last_loss
 
 
@@ -80,7 +110,7 @@ def main():
     #loss_fn = DisPenalizedCE()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    train_loader, val_loader = get_loaders(
+    train_loader, test_loader = get_loaders(
         TRAIN_IMG_DIR,
         TRAIN_LABEL_DIR,
         TRAIN_MASK_DIR,
@@ -101,25 +131,25 @@ def main():
     if LOAD_MODEL:
         load_checkpoint(torch.load(CHEKPOINT_PATH), model)
         print(f'Checking accuracy of the pre-trained model')
-        check_accuracy(val_loader, model, device=DEVICE)
+        check_accuracy(test_loader, model, device=DEVICE)
 
     print(f'Getting the scaler')
     scaler = torch.cuda.amp.GradScaler()
 
     for epoch_index in range(NUM_EPOCHS):
-        last_loss = train_fn(epoch_index, train_loader, model, optimizer, loss_fn, scaler)
+        last_loss = train_fn(epoch_index, train_loader, test_loader, model, optimizer, loss_fn, scaler)
+        writer.add_scalar("train_loss", last_loss, epoch_index)
 
         print(epoch_index, last_loss)
 
         # if epoch_index % 10 == 9:
 
         # save model
-        save_checkpoint(model, optimizer, CHEKPOINT_PATH)
+        # save_checkpoint(model, optimizer, CHEKPOINT_PATH)
 
-        # check accuracy
-        check_accuracy(train_loader, model, device=DEVICE)
-        check_accuracy(val_loader, model, device=DEVICE)
-
+        # # check accuracy
+        # avg, std, median = check_accuracy(train_loader, model, device=DEVICE)
+        # avg, std, median = check_accuracy(test_loader, model, device=DEVICE)
         # print some examples to a folder. Use train loader for dry runs
         if NUM_SAMPLES:
             save_predictions_as_imgs(
@@ -127,18 +157,16 @@ def main():
             )
         else:
             save_predictions_as_imgs(
-                val_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
-            )
-                
+                test_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+            )         
 
 def test_save_predictions():
     model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
     if torch.cuda.is_available():
         model.cuda()
-    # model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
     load_checkpoint(CHEKPOINT_PATH, model)
-    train_loader, val_loader = get_loaders(
+    train_loader, test_loader = get_loaders(
         TRAIN_IMG_DIR,
         TRAIN_LABEL_DIR,
         TRAIN_MASK_DIR,
@@ -155,10 +183,10 @@ def test_save_predictions():
         PERSISTANT_WORKERS
     )
 
-    # check_accuracy(val_loader, model, device=DEVICE, num_batches='all')
+    check_accuracy(test_loader, model, device=DEVICE, num_batches=100)
     
     save_predictions_as_imgs(
-            val_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+            train_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
         )
 
 
