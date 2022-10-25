@@ -33,7 +33,9 @@ def setup_inference():
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
     if torch.cuda.is_available():
         model.cuda()
-    load_checkpoint(torch.load(INF_MODEL_PATH), model)
+    load_checkpoint(INF_MODEL_PATH, model)
+
+    #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
     model.eval()
     device = DEVICE
     return model, device 
@@ -54,6 +56,8 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
         for x, mask_tile_name in inference_loader:
             x = x.to(device, dtype=torch.float)
             preds = torch.sigmoid(model(x)['out'])
+
+            # print("pure floating point predictions sum: ", torch.sum(preds), " max is: ", torch.max(preds))
             preds = (preds > 0.5).float()
             #preds=preds.astype('uint16')
             preds = preds.cpu().detach().numpy().astype('uint8')
@@ -235,6 +239,8 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
 
     prev_in_fname = "XSASDASDFNAJS"
     inputs = pd.read_csv(descr_csv_file)
+    # print("hack.. delete this line....")
+    # inputs = inputs[inputs['mask_fname'].str.contains('24_Black Crystal_2014_11')]
     # inp_fname,mask_fname,label,legend_type,width,height,points
     # validation_info = []
 
@@ -382,6 +388,24 @@ def test_one_mask():
     tiled_output_dir = INF_TEMP_TILED_OUT_DIR
     infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir)
 
+def build_remaining_csv_file(inp_csv_file, results_dir, out_csv_file):
+    files = glob.glob(os.path.join(results_dir, "*.tif"))
+    generated_files = [os.path.basename(x) for x in files]
+    indf = pd.read_csv(inp_csv_file)
+    mfiles = set(indf.mask_fname)
+
+    if len(generated_files) > 0:
+        # some files are generated
+        ungenfiles = mfiles - set(generated_files)
+    else:
+        ungenfiles = mfiles
+    
+    odf = indf[indf.mask_fname.isin(ungenfiles)]
+    odf.to_csv(out_csv_file, index=False)
+    return
+
+
+
 def process_args(args):
 
     if args.dataset == 'mini':
@@ -391,8 +415,23 @@ def process_args(args):
     else:
         print(f'unsupported dataset')
         return
-    input_dir = os.path.join(base_dir, VALIDATION_DIR)
-    working_dir = os.path.join(WORKING_DIR, "validation")
+    
+    if args.stage == 'training':
+        sub_dir = 'training'
+        w_sub_dir = 'training'
+    elif args.stage == 'testing':
+        # training here is intentional
+        sub_dir = 'training' 
+        w_sub_dir = 'testing'
+    elif args.stage == 'validation':
+        sub_dir = 'validation'
+        w_sub_dir = 'validation'
+    else:
+        print(f'unsupported stage for inference')
+        return 
+
+    input_dir = os.path.join(base_dir, sub_dir)
+    working_dir = os.path.join(WORKING_DIR, w_sub_dir)
     vinp_dir = os.path.join(working_dir, "input")
     vout_dir = os.path.join(working_dir, "output")
     if not os.path.isdir(vinp_dir):
@@ -403,13 +442,21 @@ def process_args(args):
         os.mkdir(vout_dir)
     
     tile_size = TILE_SIZE
-    results_dir = os.path.join(RESULTS_DIR, VALIDATION_DIR)
+    results_dir = os.path.join(RESULTS_DIR, w_sub_dir)
+    csv_file_name = args.dataset+"_"+args.stage+"_files.csv"
+    csv_file = os.path.join(TILED_INP_DIR, INFO_DIR)
+    csv_file = os.path.join(csv_file, csv_file_name)
+    rem_csv_file = csv_file.replace(".csv", "_rem.csv") 
+    build_remaining_csv_file(csv_file, results_dir, rem_csv_file)
+
+
     print(f'Running inference with the following parameters')
-    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}')
+    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}, csv_file = {csv_file}, rem_csv_file = {rem_csv_file}')
 
     # prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
-    csv_file = "../tiled_inputs/info/remaining_validation_files.csv"
-    prepare_for_submission_from_csv(csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size)
+    # csv_file = "../tiled_inputs/info/remaining_validation_files.csv"
+    # csv_file = "../tiled_inputs/info/challenge_validation_set.csv"
+    prepare_for_submission_from_csv(rem_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size)
 
     return 
 
@@ -419,6 +466,7 @@ if __name__ == "__main__":
     #test_one_mask()
     parser = argparse.ArgumentParser(description='Inference parser')
     parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
+    parser.add_argument('-s', '--stage', default='validation', help='which stage [ training, testing, validation]')
 
     args = parser.parse_args()
     # prepare_for_submission()

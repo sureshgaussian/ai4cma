@@ -1,3 +1,14 @@
+To do:
+- Need to get the MEDIAN polygon score on the test set.
+- Need functionality to run inference with image name and raster name as input.
+- Add assertions to have a valid submission. 
+	-> Values during inference shouldn't be other than 0 and 1
+	-> Handle corrupt file
+	-> Remove paddings for the inference images (if there are any)
+	-> Dont forget to use the postprocessing logic to remove false positives. 
+- 24_Black_Crystal_2014_11.tif inferences all seem zero. need to check why.
+
+
 New Structure of the inputs organization:
 
 /home/suresh/challenges/ai4cma/data : has the full data from the challenge
