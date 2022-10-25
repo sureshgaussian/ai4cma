@@ -33,7 +33,7 @@ def setup_inference():
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
     if torch.cuda.is_available():
         model.cuda()
-    load_checkpoint(INF_MODEL_PATH, model)
+    load_checkpoint(CHEKPOINT_PATH, model)
 
     #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
     model.eval()
@@ -44,6 +44,10 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
     inp_csv = pd.read_csv(csv_file)
     cma_inference_dataset = dataset.CMAInferenceDataset(tiled_input_dir, 
                                 tiled_input_dir, csv_file, None, USE_MEDIAN_COLOR)
+
+    if not len(cma_inference_dataset):
+        return False
+    
     inference_loader = DataLoader(
         cma_inference_dataset,
         batch_size=BATCH_SIZE,
@@ -79,7 +83,7 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
                     print("error in writing file: ", out_file_path)
                     exit()
     
-    return 
+    return True
 
 def convert_mask_to_raster_tif(input_file, output_file):
     # convert the image to a binary raster .tif
@@ -136,7 +140,10 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
     inp_df.to_csv("predict.csv", index=False)
 
     # ship to inference on one image
-    infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
+    success = infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
+
+    if not success:
+        return
 
     # get the original image from tiles
     label_fname = os.path.splitext(label_pattern_fname)[0]
@@ -279,10 +286,6 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
                 assert(legend_type == "line")
                 infer_lines(input_file, points, output_file, save_as_tiff)
         # validation_info.append([in_file_name, img_ht, img_wd, legend_type, label_fname])
-
-
-
-    return
 
 
 def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
@@ -451,7 +454,7 @@ def process_args(args):
 
 
     print(f'Running inference with the following parameters')
-    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}, csv_file = {csv_file}, rem_csv_file = {rem_csv_file}')
+    print(f'input_dir = {input_dir}\ntiled_inp_dir = {vinp_dir}\ntiled_out_dir = {vout_dir} \nresults_dir = {results_dir} \ntile_size = {tile_size} \ncsv_file = {csv_file} \nrem_csv_file = {rem_csv_file}')
 
     # prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
     # csv_file = "../tiled_inputs/info/remaining_validation_files.csv"

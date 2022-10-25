@@ -9,6 +9,7 @@ import cv2
 import pandas as pd
 import random
 import json
+from config import ROOT_PATH
 
 from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
@@ -110,11 +111,11 @@ class CMAInferenceDataset(Dataset):
     def __init__(self, image_dir, label_dir, input_desc, num_samples, use_median_color = False) -> None:
         super().__init__()
         self.image_dir = image_dir
-        self.label_dir = label_dir
-        
+        self.label_dir = label_dir        
         self.input_desc = input_desc
-
         self.use_median_color = use_median_color
+        self.debug = False
+
         if self.use_median_color:
             self.load_legend_median_values()
             input_df = pd.read_csv(self.input_desc)
@@ -126,7 +127,7 @@ class CMAInferenceDataset(Dataset):
             input_df = input_df.reset_index(drop=True)
             self.input_df = input_df
             #print("length of self.input_df: ", len(self.input_df))
-            assert(len(self.input_df) > 0)
+            # assert(len(self.input_df) > 0)
         else:
             self.input_df = pd.read_csv(self.input_desc)
 
@@ -167,7 +168,8 @@ class CMAInferenceDataset(Dataset):
             rgbArray[..., 0] = rgb[0]
             rgbArray[..., 1] = rgb[1]
             rgbArray[..., 2] = rgb[2]
-            # cv2.imshow('rgb', rgbArray)
+            if self.debug:
+                imshow_r('rgb', rgbArray)
 
             # median_encoded = ((rgb[0] + 1) + (rgb[1]+1)*256 + (rgb[2]+1)*256*256)/256.0**3
             # print(median_encoded)
@@ -179,6 +181,8 @@ class CMAInferenceDataset(Dataset):
             label = np.array(Image.open(label_path).convert("RGB"))
             label = label/255.0
 
+        if self.debug:
+            imshow_r('Image, Label', [image, label], True)
         #image = np.expand_dims(image, axis=-1)
         #label = np.expand_dims(label, axis=-1)
         # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
@@ -196,11 +200,11 @@ class CMAInferenceDataset(Dataset):
 
     def load_legend_median_values(self):
         #legend_median_data_path = '../data/all_legends_median_data.json'
-        legend_median_data_path = '../eda/everything_legends_median_data.json'
+        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/everything_legends_median_data.json')
 
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
-        self.legend_data = legend_data        
+        self.legend_data = legend_data       
 
 
 def test_cmadataset():

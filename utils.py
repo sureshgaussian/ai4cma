@@ -179,12 +179,15 @@ def draw_contours_big(img_path, pred_path, target_path):
     cv2.drawContours(img, target_contours, -1, (0, 255, 0), 20)
 
     imshow_r('overlay', img, True)
-    
 
 if __name__ == '__main__':
-    img_path = '/home/suresh/challenges/ai4cma/data/training/AK_Bettles.tif'
-    pred_path = '/home/suresh/challenges/ai4cma/data/training/AK_Bettles_ak_poly.tif'
-    target_path = '/home/suresh/challenges/ai4cma/data/training/AK_Bettles_al_poly.tif'
 
-    
-    draw_contours_big(img_path, pred_path, target_path)
+    step = 'testing'
+    dir = os.path.join(RESULTS_DIR, step)
+    for pred_name in os.listdir(dir):
+        img_path = os.path.join(CHALLENGE_INP_DIR, 'training', '_'.join(pred_name.split('_')[:2]) + '.tif')
+        target_path = os.path.join(CHALLENGE_INP_DIR, 'training', pred_name)
+        pred_path = os.path.join(dir, pred_name)
+
+        print(img_path, target_path, pred_path)
+        draw_contours_big(img_path, pred_path, target_path)

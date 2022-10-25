@@ -2,6 +2,7 @@ import os
 import torch
 
 # common paths (DO NOT CHANGE)
+ROOT_PATH = '/home/suresh/challenges/ai4cma'
 CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/data'
 MINI_CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/mini_data'
 RESULTS_DIR = '/home/suresh/challenges/ai4cma/results'
