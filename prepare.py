@@ -273,7 +273,7 @@ def tilize_inputs(input_dir, stage, dataset, tile_size):
         os.mkdir(output_dir)
     print(f'input directory = {input_dir}, output dir = {output_dir}')
 
-    csv_file = dataset+"_"+stage+"_split_files.csv"
+    csv_file = dataset+"_"+stage+"_files.csv"
 
     tiled_input_dir = INPUTS_DIR
     tiled_masks_dir = MASKS_DIR

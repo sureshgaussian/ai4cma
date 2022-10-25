@@ -19,7 +19,7 @@ def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
 
 def load_checkpoint(checkpoint_path, model):
     print(f"=> Loading checkpoint from {checkpoint_path}")
-    checkpoint = torch.load(CHEKPOINT_PATH)    
+    checkpoint = torch.load(checkpoint_path)    
     model.load_state_dict(checkpoint["state_dict"])
 
 def get_loaders(

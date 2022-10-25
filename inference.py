@@ -1,4 +1,7 @@
+import ast 
 import argparse
+import csv
+from matplotlib.pyplot import legend
 import rasterio 
 import numpy as np
 from PIL import Image
@@ -30,7 +33,9 @@ def setup_inference():
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
     if torch.cuda.is_available():
         model.cuda()
-    load_checkpoint(torch.load(INF_MODEL_PATH), model)
+    load_checkpoint(INF_MODEL_PATH, model)
+
+    #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
     model.eval()
     device = DEVICE
     return model, device 
@@ -51,6 +56,8 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
         for x, mask_tile_name in inference_loader:
             x = x.to(device, dtype=torch.float)
             preds = torch.sigmoid(model(x)['out'])
+
+            # print("pure floating point predictions sum: ", torch.sum(preds), " max is: ", torch.max(preds))
             preds = (preds > 0.5).float()
             #preds=preds.astype('uint16')
             preds = preds.cpu().detach().numpy().astype('uint8')
@@ -226,6 +233,58 @@ def infer_lines(input_file, points,output_file, save_as_tiff=True ):
     if save_as_tiff:
         convert_mask_to_raster_tif(input_file, output_file)        
 
+def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
+
+    model, device = setup_inference()
+
+    prev_in_fname = "XSASDASDFNAJS"
+    inputs = pd.read_csv(descr_csv_file)
+    # print("hack.. delete this line....")
+    # inputs = inputs[inputs['mask_fname'].str.contains('24_Black Crystal_2014_11')]
+    # inp_fname,mask_fname,label,legend_type,width,height,points
+    # validation_info = []
+
+    #check if validation output csv exists.
+    
+    for idx, row in inputs.iterrows():
+        in_file_name = row['inp_fname']
+        input_file = os.path.join(input_dir, in_file_name)
+
+        # to avoid splitting the same input file into tiles for each label
+        if in_file_name != prev_in_fname:
+            in_tiles = img2tiles.split_image_into_tiles(input_file, temp_inp_dir, tile_size)
+            prev_in_fname = in_file_name
+            
+        if in_tiles is None:
+            continue
+
+        legend_type = row['legend_type']
+        label = row['label']
+        points = ast.literal_eval(row.points)
+        img_ht = row['height']
+        img_wd = row['width']
+
+        label_fname = os.path.splitext(in_file_name)[0]+"_"+label+".tif"
+        label_fname = os.path.basename(label_fname)
+        output_file = os.path.join(results_dir, label_fname)
+        label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, temp_inp_dir, tile_size)
+
+        if legend_type == "poly":
+            infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
+                legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
+        else:
+            if legend_type == "pt":
+                infer_points(input_file, points, output_file, save_as_tiff)
+            else:
+                assert(legend_type == "line")
+                infer_lines(input_file, points, output_file, save_as_tiff)
+        # validation_info.append([in_file_name, img_ht, img_wd, legend_type, label_fname])
+
+
+
+    return
+
+
 def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
     # input_info_df = get_input_info(input_dir=input_dir)
     # check if the directories exist
@@ -305,6 +364,15 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
     df.to_csv("inference_results.csv")
     return 
 
+
+def prepare_for_submission_from_csv(csv_file, input_dir, tiled_inp_dir, tiled_out_dir, results_dir, tile_size):
+    #create_legend_median_values(input_dir, output_json_file_name)
+    infer_from_csv(csv_file, input_dir, results_dir, tiled_inp_dir, tiled_out_dir, tile_size)
+    #convert_mask_to_raster_tif("../data/mini_validation/CO_Elkhorn.tif", "./temp/results/CO_Elkhorn_Qal_poly.tif")
+    shutil.make_archive('gaussiansolutionsteam', format='zip', root_dir=results_dir)
+
+    return 
+
 def prepare_for_submission(input_dir, tiled_inp_dir, tiled_out_dir, results_dir, tile_size):
     #create_legend_median_values(input_dir, output_json_file_name)
     infer(input_dir, results_dir, tiled_inp_dir, tiled_out_dir, tile_size)
@@ -320,6 +388,24 @@ def test_one_mask():
     tiled_output_dir = INF_TEMP_TILED_OUT_DIR
     infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir)
 
+def build_remaining_csv_file(inp_csv_file, results_dir, out_csv_file):
+    files = glob.glob(os.path.join(results_dir, "*.tif"))
+    generated_files = [os.path.basename(x) for x in files]
+    indf = pd.read_csv(inp_csv_file)
+    mfiles = set(indf.mask_fname)
+
+    if len(generated_files) > 0:
+        # some files are generated
+        ungenfiles = mfiles - set(generated_files)
+    else:
+        ungenfiles = mfiles
+    
+    odf = indf[indf.mask_fname.isin(ungenfiles)]
+    odf.to_csv(out_csv_file, index=False)
+    return
+
+
+
 def process_args(args):
 
     if args.dataset == 'mini':
@@ -329,8 +415,23 @@ def process_args(args):
     else:
         print(f'unsupported dataset')
         return
-    input_dir = os.path.join(base_dir, VALIDATION_DIR)
-    working_dir = os.path.join(WORKING_DIR, "validation")
+    
+    if args.stage == 'training':
+        sub_dir = 'training'
+        w_sub_dir = 'training'
+    elif args.stage == 'testing':
+        # training here is intentional
+        sub_dir = 'training' 
+        w_sub_dir = 'testing'
+    elif args.stage == 'validation':
+        sub_dir = 'validation'
+        w_sub_dir = 'validation'
+    else:
+        print(f'unsupported stage for inference')
+        return 
+
+    input_dir = os.path.join(base_dir, sub_dir)
+    working_dir = os.path.join(WORKING_DIR, w_sub_dir)
     vinp_dir = os.path.join(working_dir, "input")
     vout_dir = os.path.join(working_dir, "output")
     if not os.path.isdir(vinp_dir):
@@ -341,11 +442,21 @@ def process_args(args):
         os.mkdir(vout_dir)
     
     tile_size = TILE_SIZE
-    results_dir = os.path.join(RESULTS_DIR, VALIDATION_DIR)
-    print(f'Running inference with the following parameters')
-    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}')
+    results_dir = os.path.join(RESULTS_DIR, w_sub_dir)
+    csv_file_name = args.dataset+"_"+args.stage+"_files.csv"
+    csv_file = os.path.join(TILED_INP_DIR, INFO_DIR)
+    csv_file = os.path.join(csv_file, csv_file_name)
+    rem_csv_file = csv_file.replace(".csv", "_rem.csv") 
+    build_remaining_csv_file(csv_file, results_dir, rem_csv_file)
 
-    prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
+
+    print(f'Running inference with the following parameters')
+    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}, csv_file = {csv_file}, rem_csv_file = {rem_csv_file}')
+
+    # prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
+    # csv_file = "../tiled_inputs/info/remaining_validation_files.csv"
+    # csv_file = "../tiled_inputs/info/challenge_validation_set.csv"
+    prepare_for_submission_from_csv(rem_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size)
 
     return 
 
@@ -355,6 +466,7 @@ if __name__ == "__main__":
     #test_one_mask()
     parser = argparse.ArgumentParser(description='Inference parser')
     parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
+    parser.add_argument('-s', '--stage', default='validation', help='which stage [ training, testing, validation]')
 
     args = parser.parse_args()
     # prepare_for_submission()

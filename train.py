@@ -1,4 +1,4 @@
-#from ND_Crossentropy import DisPenalizedCE
+import argparse
 import torch
 import os
 # import albumentations as A
@@ -95,8 +95,19 @@ def train_fn(epoch_index, loader, test_loader, model, optimizer, loss_fn, scaler
     return last_loss
 
 
-def main():
-    
+def main(args):
+
+    TRAIN_IMG_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_training/inputs")
+    TRAIN_LABEL_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_training/legends")
+    TRAIN_MASK_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_training/masks")
+    TRAIN_DESC = os.path.join(TILED_INP_DIR, args.dataset+"_training/info/balanced_tiles.csv")
+
+    TEST_IMG_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_testing/inputs")
+    TEST_LABEL_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_testing/legends")
+    TEST_MASK_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_testing/masks")
+    TEST_DESC = os.path.join(TILED_INP_DIR, args.dataset+"_testing/info/balanced_tiles.csv")
+
+
     model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
 
@@ -191,5 +202,10 @@ def test_save_predictions():
 
 
 if __name__ == "__main__":
-    # main()
-    test_save_predictions()
+
+    parser = argparse.ArgumentParser(description='Training parser')
+    parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
+    parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
+    args = parser.parse_args()
+    main(args)
+    # test_save_predictions()
