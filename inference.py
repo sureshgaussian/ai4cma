@@ -5,6 +5,9 @@ from matplotlib.pyplot import legend
 import rasterio 
 import numpy as np
 from PIL import Image
+
+from postprocessing import discard_preds_outside_map
+from utils_show import imshow_r
 Image.MAX_IMAGE_PIXELS = None
 from zmq import device
 import img2tiles 
@@ -150,9 +153,27 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
     mask_out_fname = os.path.join(results_dir, label_fname+".tif")
     img2tiles.stitch_image_from_tiles(tile_size, label_fname, temp_out_dir, mask_out_fname, (img_wd, img_ht))
 
-    if save_as_tiff:
-        convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
+    if USE_POST_PROCESSING:
+        # Postprocessing
+        raw_prediction = cv2.imread(mask_out_fname, 0)
+        print(f"raw_prediction {np.unique(raw_prediction, return_counts=True)}")
+        print(f"raw_prediction : {raw_prediction.shape}")
+        imshow_r('raw_prediction', raw_prediction*255, True)
 
+        json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
+        data_dir = 'validation' if args.stage == 'validation' else 'training'
+        legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
+        post_processing_mask = discard_preds_outside_map(legend_json_path, debug=True)
+        print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
+        imshow_r('post_processing_mask', post_processing_mask*255, True)     
+        
+        post_processed_mask = raw_prediction * post_processing_mask
+        print(f"post_processed mask {np.unique(post_processing_mask, return_counts=True)}")
+        imshow_r('post_processed', post_processed_mask*255, True)
+        cv2.imwrite(mask_out_fname, post_processed_mask)
+
+        if save_as_tiff:
+            convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
 
     #remove the output directory
     assert(os.path.isdir(temp_out_dir))

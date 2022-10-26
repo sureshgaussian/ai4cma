@@ -1,12 +1,11 @@
 from ctypes import c_void_p
 import torch
-import torchvision
 from dataset import CMADataset
 from torch.utils.data import DataLoader
 from config import *
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
+import json
 from utils_show import imshow_r, to_rgb
 
 def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
@@ -134,6 +133,9 @@ def merge_images(image_batch, size):
     return img
 
 def draw_contours(img_batch, pred_batch, target_batch):
+    '''
+    Given batch of img, pred and target, draw contours to visualize the results
+    '''
     img_batch = (img_batch.detach().cpu().numpy()*255).astype('uint8')
     pred_batch = (pred_batch.detach().cpu().numpy()*255).astype('uint8')
     target_batch = (target_batch.detach().cpu().numpy()*255).astype('uint8')
@@ -164,6 +166,37 @@ def draw_contours(img_batch, pred_batch, target_batch):
     im_merged = merge_images(overlays, [2,8])
 
     return im_merged*255
+
+def load_legend_data(img_name):
+    '''
+    Load legend data as a dict
+    '''
+    json_path = os.path.join(CHALLENGE_INP_DIR, 'training', img_name.replace('.tif', '.json'))
+    with open(json_path) as f:
+        legend_data = json.load(f)
+    return legend_data
+
+def bounding_box(points):
+    x_coordinates, y_coordinates = zip(*points)
+    return [(min(x_coordinates), min(y_coordinates)), (max(x_coordinates), max(y_coordinates))]
+
+def preprocess_points(points):
+    '''Ensure that we have top-left and bottom-right coordinates of the legend'''
+    # Get the outrmost points if coordinates of a polygon are given
+    if len(points) > 2:
+        points = bounding_box(points)
+
+    # Sort points by x-axis
+    points = sorted(points, key=lambda x : x[0])
+
+    # Swap y point axis if needed
+    # [0, 1        [1, 0]
+    #  1, 0]   --> [0, 1]
+    if points[0][1] > points[1][1]:
+        points[0][1], points[1][1] = points[1][1], points[0][1]
+
+    points = [(int(point[0]), int(point[1]))for point in points]
+    return points
 
 def draw_contours_big(img_path, pred_path, target_path):
     

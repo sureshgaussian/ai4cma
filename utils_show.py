@@ -17,3 +17,6 @@ def imshow_r(wdw, img, stop=False):
 def to_rgb(image):
     ''' Convert image to RGB '''
     return cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+
+def to_grayscale(image):
+    return cv2.cvtColor(image.copy(), cv2.COLOR_RGB2GRAY)
