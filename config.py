@@ -2,6 +2,7 @@ import os
 import torch
 
 # common paths (DO NOT CHANGE)
+ROOT_PATH = '/home/suresh/challenges/ai4cma'
 CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/data'
 MINI_CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/mini_data'
 RESULTS_DIR = '/home/suresh/challenges/ai4cma/results'
@@ -32,6 +33,8 @@ LOAD_MODEL = True
 NUM_SAMPLES = None
 TRAIN_TEST_SPLIT_RATIO = 0.8
 EMPTY_TILES_RATIO=0.6
+
+USE_POST_PROCESSING = True
 
 #Ravi's experiments
 USE_MEDIAN_COLOR = True
