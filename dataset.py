@@ -9,6 +9,8 @@ import cv2
 import pandas as pd
 import random
 import json
+
+from config import ROOT_PATH
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
@@ -190,7 +192,7 @@ class CMAInferenceDataset(Dataset):
 
     def load_legend_median_values(self):
         #legend_median_data_path = '../data/all_legends_median_data.json'
-        legend_median_data_path = '../eda/everything_legends_median_data.json'
+        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/everything_legends_median_data.json')
 
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
