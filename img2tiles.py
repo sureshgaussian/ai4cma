@@ -1,5 +1,4 @@
 from math import nan, isnan
-from turtle import width
 import cv2
 import rasterio
 from PIL import Image

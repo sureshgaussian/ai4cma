@@ -7,6 +7,8 @@ from config import *
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import json
+from utils_show import imshow_r, to_rgb
 
 def save_checkpoint(state, filename="./temp/my_checkpoint.pth.tar"):
     print(f"=> Saving checkpoint to {filename}")
@@ -154,3 +156,62 @@ def draw_contours(img_batch, pred_batch, target_batch):
     im_merged = merge_images(overlays, [2,8])
 
     return im_merged*255
+
+
+def load_legend_data(img_name):
+    '''
+    Load legend data as a dict
+    '''
+    json_path = os.path.join(CHALLENGE_INP_DIR, 'training', img_name.replace('.tif', '.json'))
+    with open(json_path) as f:
+        legend_data = json.load(f)
+    return legend_data
+
+def bounding_box(points):
+    x_coordinates, y_coordinates = zip(*points)
+    return [(min(x_coordinates), min(y_coordinates)), (max(x_coordinates), max(y_coordinates))]
+
+def preprocess_points(points):
+    '''Ensure that we have top-left and bottom-right coordinates of the legend'''
+    # Get the outrmost points if coordinates of a polygon are given
+    if len(points) > 2:
+        points = bounding_box(points)
+
+    # Sort points by x-axis
+    points = sorted(points, key=lambda x : x[0])
+
+    # Swap y point axis if needed
+    # [0, 1        [1, 0]
+    #  1, 0]   --> [0, 1]
+    if points[0][1] > points[1][1]:
+        points[0][1], points[1][1] = points[1][1], points[0][1]
+
+    points = [(int(point[0]), int(point[1]))for point in points]
+    return points
+
+def draw_contours_big(img_path, pred_path, target_path):
+    
+    img = cv2.imread(img_path, 0)
+    img = to_rgb(img)
+    pred = cv2.imread(pred_path, 0)
+    target = cv2.imread(target_path, 0)
+
+    pred_contours = cv2.findContours(pred, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
+    cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 20)
+
+    target_contours = cv2.findContours(target, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
+    cv2.drawContours(img, target_contours, -1, (0, 255, 0), 20)
+
+    imshow_r('overlay', img, True)
+
+if __name__ == '__main__':
+
+    step = 'testing'
+    dir = os.path.join(RESULTS_DIR, step)
+    for pred_name in os.listdir(dir):
+        img_path = os.path.join(CHALLENGE_INP_DIR, 'training', '_'.join(pred_name.split('_')[:2]) + '.tif')
+        target_path = os.path.join(CHALLENGE_INP_DIR, 'training', pred_name)
+        pred_path = os.path.join(dir, pred_name)
+
+        print(img_path, target_path, pred_path)
+        draw_contours_big(img_path, pred_path, target_path)
