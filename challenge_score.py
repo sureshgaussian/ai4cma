@@ -1,3 +1,4 @@
+import sys 
 from unittest import result
 import numpy as np
 import pandas as pd
@@ -9,7 +10,9 @@ from tqdm.notebook import tqdm
 from joblib import Parallel, delayed
 import math
 import json
-
+from datetime import datetime
+import glob
+import argparse
 def overlap_distance_calculate(mat_true, mat_pred, min_valid_range=.1, parallel_workers=1):
     """
     mat_true, mat_pred: 2d matrices, with 0s and 1s only
@@ -113,33 +116,6 @@ def detect_difficult_pixels(map_image, binary_raster, legend_coor, plot=True, se
     return final_hard_pixels
 
 
-def match_by_color(img, legend_coor, color_range=20):
-    """
-    img: the image array for the map image
-    legend_coor: coordinate for the legend feature, from the legend json file
-    """
-    # get the legend coors and the predominant color
-    (x_min, y_min), (x_max, y_max) = legend_coor            
-    legend_img = img[int(y_min):int(y_max), int(x_min):int(x_max)]
-    # take the median of the colors to find the predominant color
-    r=int(np.median(legend_img[:,:,0]))
-    g=int(np.median(legend_img[:,:,1]))
-    b=int(np.median(legend_img[:,:,2]))
-    sought_color=[r, g, b]
-    print('matching the color:', sought_color, 'with color range:', color_range)
-    # capture the variations of legend color due to scanning errors
-    lower = np.array([x - color_range for x in sought_color], dtype="uint8")
-    upper = np.array([x + color_range for x in sought_color], dtype="uint8")
-    # create a mask to only preserve current legend color in the basemap
-    mask = cv2.inRange(img, lower, upper)
-    detected = cv2.bitwise_and(img, img, mask=mask)
-    # convert to grayscale 
-    detected_gray = cv2.cvtColor(detected, cv2.COLOR_BGR2GRAY)
-    img_bw = cv2.threshold(detected_gray, 127, 255, cv2.THRESH_BINARY)[1]
-    # convert the grayscale image to binary image
-    pred_by_color = img_bw.astype(float) / 255
-    return pred_by_color
-
 def match_by_color(img, legend_coor, color_range=4, plot=False):
     """
     img: the image array for the map image
@@ -171,7 +147,7 @@ def match_by_color(img, legend_coor, color_range=4, plot=False):
     return pred_by_color
 
 def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, legend_json_path=None, min_valid_range=.1,
-                      difficult_weight=.7, set_false_as='hard', plot=True, color_range=4, parallel_workers=1):
+                      difficult_weight=.7, set_false_as='hard', plot=False, color_range=4, parallel_workers=1):
     
     """
     map_image_path: path to the the actual map image
@@ -190,7 +166,7 @@ def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, leg
     true_raster=true_raster[:,:,0]
     
     predicted_raster=cv2.imread(predicted_raster_path)
-    if len(predicted_raster.shape)==3
+    if len(predicted_raster.shape)==3:
         predicted_raster=predicted_raster[:,:,0]
     elif len(predicted_raster.shape)==2:
         predicted_raster=predicted_raster
@@ -322,17 +298,43 @@ def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, leg
 
 
 def test_feature_f1():
-    map_image_path = "../data/training/AK_Bettles.tif"
-    predicted_image = "../data/training/AK_Bettles_ad_poly.tif"
-    true_raster_image = "../data/training/AK_Bettles_ad_poly.tif"
-    legend_json_path = "../data/training/AK_Bettles.json"
+    map_image_path = "../data/training/AK_Umiat.tif"
+    predicted_image = "../results/testing/AK_Umiat_Kn_poly.tif"
+    true_raster_image = "../data/training/AK_Umiat_Kn_poly.tif"
+    legend_json_path = "../data/training/AK_Umiat.json"
     [precision, recall, f_score] = feature_f_score(map_image_path=map_image_path, predicted_raster_path=predicted_image,
             true_raster_path=true_raster_image, legend_json_path=legend_json_path)
     print(precision, recall, f_score)
     return
 
+def get_info_csv(input_csv, results_dir, inputs_dir, score_csv_file):
+    df = pd.read_csv(input_csv)
+    results = glob.glob(os.path.join(results_dir, "*.tif"))
+    if not results:
+        print(f'no files in {results_dir}... Check **** ')
+        return
+    results_tifs = [os.path.basename(x) for x in results]
+    input_tifs = df['mask_fname'].values
 
-def calculate_score(info_csv):
+    info_list = []
+    for results_tif in results_tifs:
+        print(results_tif)
+        if results_tif in input_tifs:
+            inp_fname = df.loc[df['mask_fname'] == results_tif, 'inp_fname'].values[0]
+            img_path = os.path.join(inputs_dir, inp_fname)
+            predicted_raster_path = os.path.join(results_dir, results_tif)
+            original_raster_path = os.path.join(inputs_dir, results_tif)
+            legend_json_path = os.path.join(inputs_dir, inp_fname.replace('.tif', '.json'))
+            legend_type = results_tif.replace('.tif','').split("_")[-1]
+            info_list.append([img_path, predicted_raster_path, original_raster_path, legend_json_path, legend_type])
+
+    info_df = pd.DataFrame(info_list, columns=['input_image_path', 'predicted_image_path', 'original_raster_path', 'legend_json_path', 'legend_type'])
+    info_df.to_csv(score_csv_file,index=False)
+    return
+
+    
+
+def calculate_score(info_csv, score_out_csv):
     """
     Inputs:
         - csv file with [input_image_path, predicted_image_path, original_raster_path, legend_json_path, legend_type]
@@ -350,7 +352,7 @@ def calculate_score(info_csv):
     results_df = pd.DataFrame(results, columns=['precision', 'recall', 'f1_score'])
     #print("results_df columns are: ", results_df.columns) 
     df_results = pd.concat([df, results_df], axis=1)
-    print(df_results)
+    df_results.to_csv(score_out_csv, index=False)
 
     poly_type_group = df_results.groupby('legend_type')
     score_df = poly_type_group.median()
@@ -363,9 +365,36 @@ def calculate_score(info_csv):
 
     return score
 
+def process_args(args):
+    # prepare the required csv for scoring from the args
+    input_csv = args.csv_file
+    results_dir = args.results_dir
+    inputs_dir = args.inputs_dir
+    score_csv_file = "temp_score_input.csv"
+    get_info_csv(input_csv, results_dir, inputs_dir, score_csv_file)
+    # call calculate_score with the csv file
+    score_out_csv = "score_out.csv"
+
+    print("Going into scoring calculations.....")
+    score = calculate_score(score_csv_file, score_out_csv)
+    print(score)
+    return 
+
 def test_calculate_score():
+
     score = calculate_score("test_f1.csv")
     print(score)
     return 
 if __name__ == "__main__":
-    test_calculate_score()
+    parser = argparse.ArgumentParser(description='Challenge score parser')
+    parser.add_argument('-i', '--inputs_dir', help='input directory where original files are ')
+    parser.add_argument('-r', '--results_dir', help='results directory where inference results are written out ')
+    parser.add_argument('-c', '--csv_file', help='csv file that describes inference results ')
+
+    args = parser.parse_args()
+    print(len(sys.argv))
+    if len(sys.argv) != 7:
+        print(f'Wrong inputs...')
+        exit()
+    # prepare_for_submission()
+    process_args(args)    

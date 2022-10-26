@@ -361,7 +361,7 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
             validation_info.append([os.path.basename(json_file), inp_file_name, img_ht, img_wd, legend_type, label_fname])
 
     df = pd.DataFrame(validation_info, columns=["json_file", "inp_file", "height", "width", "legend_type", "label_fname"])
-    df.to_csv("inference_results.csv")
+    df.to_csv("inference_results.csv", index=False)
     return 
 
 
