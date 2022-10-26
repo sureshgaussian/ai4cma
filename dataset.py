@@ -96,6 +96,7 @@ class CMADataset(Dataset):
 
     def load_legend_median_values(self):
         legend_median_data_path = '/home/ravi/cma_challenge/legends_median_data.json'
+        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/everything_legends_median_data.json')
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
         self.legend_data = legend_data

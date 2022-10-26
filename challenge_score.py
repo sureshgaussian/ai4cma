@@ -373,7 +373,7 @@ def process_args(args):
     score_csv_file = "temp_score_input.csv"
     get_info_csv(input_csv, results_dir, inputs_dir, score_csv_file)
     # call calculate_score with the csv file
-    score_out_csv = "score_out.csv"
+    score_out_csv = args.score_file
 
     print("Going into scoring calculations.....")
     score = calculate_score(score_csv_file, score_out_csv)
@@ -390,10 +390,11 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--inputs_dir', help='input directory where original files are ')
     parser.add_argument('-r', '--results_dir', help='results directory where inference results are written out ')
     parser.add_argument('-c', '--csv_file', help='csv file that describes inference results ')
+    parser.add_argument('-s', '--score_file', help='score csv file output with precision, recall, n f1 ')
 
     args = parser.parse_args()
     print(len(sys.argv))
-    if len(sys.argv) != 7:
+    if len(sys.argv) != 9:
         print(f'Wrong inputs...')
         exit()
     # prepare_for_submission()

@@ -30,12 +30,14 @@ import json
 
 import logging
 
-def setup_inference():
+def setup_inference(model_path):
     model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
+
+
     if torch.cuda.is_available():
         model.cuda()
-    load_checkpoint(CHEKPOINT_PATH, model)
+    load_checkpoint(model_path, model)
 
     #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
     model.eval()
@@ -152,9 +154,10 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
         # print(f"raw_prediction : {raw_prediction.shape}")
         # imshow_r('raw_prediction', raw_prediction*255, True)
 
-        json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
-        data_dir = 'validation' if args.stage == 'validation' else 'training'
-        legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
+        # json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
+        # data_dir = 'validation' if args.stage == 'validation' else 'training'
+        # legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
+        legend_json_path = input_file.replace('.tif', '.json')
         post_processing_mask = discard_preds_outside_map(legend_json_path, debug=False)
         # print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
         # imshow_r('post_processing_mask', post_processing_mask*255, True)     
@@ -255,9 +258,9 @@ def infer_lines(input_file, points,output_file, save_as_tiff=True ):
     if save_as_tiff:
         convert_mask_to_raster_tif(input_file, output_file)        
 
-def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
+def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True, model_path=CHEKPOINT_PATH):
 
-    model, device = setup_inference()
+    model, device = setup_inference(model_path=model_path)
 
     prev_in_fname = "XSASDASDFNAJS"
     inputs = pd.read_csv(descr_csv_file)
@@ -307,10 +310,11 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
     return
 
 
-def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
+def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True, model_path=CHEKPOINT_PATH):
     # input_info_df = get_input_info(input_dir=input_dir)
     # check if the directories exist
-    model, device = setup_inference()
+    # model, device = setup_inference()
+    model, device = setup_inference(model_path=model_path)
     print(f'Setup of the model for inference complete')
 
     logging.basicConfig(filename="validation_run.log")
@@ -387,9 +391,9 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
     return 
 
 
-def prepare_for_submission_from_csv(csv_file, input_dir, tiled_inp_dir, tiled_out_dir, results_dir, tile_size):
+def prepare_for_submission_from_csv(csv_file, input_dir, tiled_inp_dir, tiled_out_dir, results_dir, tile_size, model_path=CHEKPOINT_PATH):
     #create_legend_median_values(input_dir, output_json_file_name)
-    infer_from_csv(csv_file, input_dir, results_dir, tiled_inp_dir, tiled_out_dir, tile_size)
+    infer_from_csv(csv_file, input_dir, results_dir, tiled_inp_dir, tiled_out_dir, tile_size, model_path=model_path)
     #convert_mask_to_raster_tif("../data/mini_validation/CO_Elkhorn.tif", "./temp/results/CO_Elkhorn_Qal_poly.tif")
     shutil.make_archive('gaussiansolutionsteam', format='zip', root_dir=results_dir)
 
@@ -471,14 +475,14 @@ def process_args(args):
     rem_csv_file = csv_file.replace(".csv", "_rem.csv") 
     build_remaining_csv_file(csv_file, results_dir, rem_csv_file)
 
-
+    model_path = args.model
     print(f'Running inference with the following parameters')
-    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}, csv_file = {csv_file}, rem_csv_file = {rem_csv_file}')
+    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}, csv_file = {csv_file}, rem_csv_file = {rem_csv_file}, model = {model_path}')
 
     # prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
     # csv_file = "../tiled_inputs/info/remaining_validation_files.csv"
     # csv_file = "../tiled_inputs/info/challenge_validation_set.csv"
-    prepare_for_submission_from_csv(rem_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size)
+    prepare_for_submission_from_csv(rem_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size, model_path=model_path)
 
     return 
 
@@ -489,6 +493,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Inference parser')
     parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
     parser.add_argument('-s', '--stage', default='validation', help='which stage [ training, testing, validation]')
+    parser.add_argument('-m', '--model', default=CHEKPOINT_PATH, help='full path to the model')
 
     args = parser.parse_args()
     # prepare_for_submission()

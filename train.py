@@ -54,9 +54,9 @@ def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
         # update tqdm loop
         # loop.set_postfix(loss=loss.item())
         # Gather data and report
-        if i % 10 == 9:
+        if i % 100 == 9:
             running_loss += loss.item()
-            last_loss = running_loss / 10 # loss per batch
+            last_loss = running_loss / 100 # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             # tb_x = epoch_index * len(loader) + i + 1
             # tb_writer.add_scalar('Loss/train', last_loss, tb_x)
@@ -84,7 +84,7 @@ def main(args):
     if torch.cuda.is_available():
         model.cuda()
 
-    # model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+    # 
     loss_fn = nn.BCEWithLogitsLoss()
     # loss_fn = nn.BCELoss()
     #loss_fn = GDiceLossV2()
@@ -109,8 +109,9 @@ def main(args):
 
     print(f'Got the loaders')
 
+    checkpoint_path = args.model_checkpoint_path
     if LOAD_MODEL:
-        load_checkpoint(torch.load(CHEKPOINT_PATH), model)
+        load_checkpoint(checkpoint_path, model)
         print(f'Checking accuracy of the pre-trained model')
         check_accuracy(val_loader, model, device=DEVICE)
 
@@ -129,7 +130,7 @@ def main(args):
             "state_dict": model.state_dict(),
             "optimizer":optimizer.state_dict(),
         }
-        save_checkpoint(checkpoint, CHEKPOINT_PATH)
+        save_checkpoint(checkpoint, checkpoint_path)
 
         # check accuracy
         check_accuracy(train_loader, model, device=DEVICE)
@@ -177,6 +178,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training parser')
     parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
     parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
+    parser.add_argument('-m', '--model_checkpoint_path', default=CHEKPOINT_PATH, help='checkpoint path')
     args = parser.parse_args()
     main(args)
     # test_save_predictions()
