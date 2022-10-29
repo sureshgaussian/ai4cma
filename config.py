@@ -7,6 +7,8 @@ CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/data'
 MINI_CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/mini_data'
 RESULTS_DIR = '/home/suresh/challenges/ai4cma/results'
 
+DOWNSCALED_DATA_DIR = os.path.join(ROOT_PATH, 'downscaled_data')
+
 TILED_INP_DIR = os.path.join(ROOT_PATH, 'tiled_inputs')
 INFO_DIR = "info"
 INPUTS_DIR = "inputs"

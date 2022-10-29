@@ -1,4 +1,3 @@
-from ctypes import c_void_p
 from unet import UNET
 import torch
 from dataset import CMADataset
