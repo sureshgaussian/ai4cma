@@ -39,7 +39,10 @@ def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
         optimizer.zero_grad()
         # forward
         with torch.cuda.amp.autocast():
-            predictions = model(data)['out']
+            if isinstance(model, UNET):
+                predictions = model(data)
+            else:
+                predictions = model(data)['out']
             loss = loss_fn(predictions, targets)
 
         loss.backward()
@@ -78,8 +81,11 @@ def main(args):
     TEST_DESC = os.path.join(TILED_INP_DIR, args.dataset+"_testing/info/balanced_tiles.csv")
 
 
-    model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
-    model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
+    if MODEL_NAME == 'unet':
+        model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+    else:
+        model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
+        model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
 
     if torch.cuda.is_available():
         model.cuda()

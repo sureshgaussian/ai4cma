@@ -2,6 +2,7 @@ import ast
 import argparse
 import csv
 from matplotlib.pyplot import legend
+from unet import UNET
 import rasterio 
 import numpy as np
 from PIL import Image
@@ -31,13 +32,22 @@ import json
 import logging
 
 def setup_inference(model_path):
-    model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
-    model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
 
+    if MODEL_NAME == 'unet':
+        model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+    else:
+        model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
+        model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
+
+    if isinstance(model, UNET):
+        print(f'Using UNET model in inference')
+    else:
+        print(f'Using deeplabv3 model for inferences')
 
     if torch.cuda.is_available():
         model.cuda()
     load_checkpoint(model_path, model)
+
 
     #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
     model.eval()
@@ -59,7 +69,10 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
     with torch.no_grad():
         for x, mask_tile_name in inference_loader:
             x = x.to(device, dtype=torch.float)
-            preds = torch.sigmoid(model(x)['out'])
+            if isinstance(model, UNET):
+                preds = model(x)
+            else:
+                preds = model(x)['out']
 
             # print("pure floating point predictions sum: ", torch.sum(preds), " max is: ", torch.max(preds))
             preds = (preds > 0.5).float()
@@ -270,9 +283,11 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
     # validation_info = []
 
     #check if validation output csv exists.
+    num_files = len(inputs)
     
     for idx, row in inputs.iterrows():
         in_file_name = row['inp_fname']
+        print(f'Processing {in_file_name} : {idx} file out of {num_files}...')
         input_file = os.path.join(input_dir, in_file_name)
 
         # to avoid splitting the same input file into tiles for each label

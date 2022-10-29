@@ -1,4 +1,5 @@
 from ctypes import c_void_p
+from unet import UNET
 import torch
 import torchvision
 from dataset import CMADataset
@@ -79,7 +80,10 @@ def check_accuracy(loader, model, device="cuda"):
         for x, y in loader:
             x = x.to(device, dtype=torch.float)
             y = y.to(device).unsqueeze(1)
-            preds = torch.sigmoid(model(x)['out'])
+            if isinstance(model, UNET):
+                preds = model(x)
+            else:
+                preds = model(x)['out']
             preds = (preds > 0.5).float()
             num_correct += (preds == y).sum()
             num_pixels += torch.numel(preds)
@@ -98,7 +102,10 @@ def save_predictions_as_imgs(
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device, dtype=torch.float)
         with torch.no_grad():
-            preds = torch.sigmoid(model(x)['out'])
+            if isinstance(model, UNET):
+                preds = model(x)
+            else:
+                preds = model(x)['out']
             preds = (preds > 0.5).float()
         overlays = draw_contours(x, preds, y)
         cv2.imwrite(f"{folder}/pred_{idx}_{EXP_NAME}.png", overlays)

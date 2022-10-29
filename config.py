@@ -23,7 +23,7 @@ LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'Using device = {DEVICE}')
 BATCH_SIZE = 16
-NUM_EPOCHS = 1
+NUM_EPOCHS = 10
 NUM_WORKERS = 2
 TILE_SIZE = 256
 IMAGE_HEIGHT = TILE_SIZE  # 1280 originally
@@ -34,7 +34,10 @@ NUM_SAMPLES = None
 TRAIN_TEST_SPLIT_RATIO = 0.8
 EMPTY_TILES_RATIO=0.6
 
-USE_POST_PROCESSING = True
+USE_POST_PROCESSING = False 
+#True
+
+MODEL_NAME = 'deeplabv3'
 
 #Ravi's experiments
 USE_MEDIAN_COLOR = True
