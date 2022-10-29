@@ -9,35 +9,42 @@ import cv2
 import pandas as pd
 import random
 import json
-
 from config import ROOT_PATH
+
+from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
-    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, use_median_color = False) -> None:
+    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type, use_median_color = False, ) -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir
         self.mask_dir = mask_dir
-        
         self.input_desc = input_desc
-
         self.use_median_color = use_median_color
-        if self.use_median_color:
-            self.load_legend_median_values()
-            input_df = pd.read_csv(self.input_desc)
-            input_df['stripped'] = input_df['tile_legend'].apply(lambda x : x.split('.')[0])
-            input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
-            input_df = input_df.reset_index(drop=True)
-            self.input_df = input_df
-        else:
-            self.input_df = pd.read_csv(self.input_desc)
+        self.legend_type = legend_type
+        self.debug = False
+
+        input_df = pd.read_csv(self.input_desc)
+
+        if legend_type == 'poly':
+            if self.use_median_color:
+                self.load_legend_median_values()            
+                # Discard invalid legends (legends with zero area). This also leaves us with only poly
+                input_df['stripped'] = input_df['tile_legend'].apply(lambda x : x.split('.')[0])
+                input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
+                input_df.drop(columns=['stripped'], inplace=True)
+                input_df.reset_index(drop=True, inplace=True)
+
+        # Filter by 'poly' or 'line' or 'pt'
+        input_df = input_df[input_df['tile_legend'].str.contains(legend_type)]
 
         if num_samples:
-            sample_org_files = self.input_df['orig_file'].unique()[:num_samples]
-            input_df = self.input_df[self.input_df['orig_file'].isin(sample_org_files)]
-            input_df = input_df.reset_index(drop=True)
-            self.input_df = input_df
+            sample_org_files = input_df['orig_file'].unique()[:num_samples]
+            input_df = input_df[input_df['orig_file'].isin(sample_org_files)]
+            input_df.reset_index(drop=True, inplace=True)
+
+        self.input_df = input_df
 
         print('Non empty label distribution : ', self.input_df['empty_tile'].value_counts())
 
@@ -65,7 +72,8 @@ class CMADataset(Dataset):
             rgbArray[..., 0] = rgb[0]
             rgbArray[..., 1] = rgb[1]
             rgbArray[..., 2] = rgb[2]
-            # cv2.imshow('rgb', rgbArray)
+            if self.debug:
+                imshow_r('rgb', rgbArray, True)
 
             # median_encoded = ((rgb[0] + 1) + (rgb[1]+1)*256 + (rgb[2]+1)*256*256)/256.0**3
             # print(median_encoded)
@@ -77,21 +85,19 @@ class CMADataset(Dataset):
             label = np.array(Image.open(label_path).convert("RGB"))
             label = label/255.0
 
-        label_mask = np.array(Image.open(mask_path).convert("L"))
+        if self.debug:
+            imshow_r('Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
 
-        #image = np.expand_dims(image, axis=-1)
-        #label = np.expand_dims(label, axis=-1)
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
         input = np.dstack((image, label))
 
         # Scaling is done seperately for image and mask. Hence we dont need this. 
         # input = input/255.0
 
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
+        label_mask = np.array(Image.open(mask_path).convert("L"))
+
         input= np.moveaxis(input, -1, 0)
         # label_mask= np.moveaxis(label_mask, -1, 0)
 
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
         return input, label_mask
 
     def load_legend_median_values(self):
@@ -102,16 +108,15 @@ class CMADataset(Dataset):
         self.legend_data = legend_data
 
 
-
 class CMAInferenceDataset(Dataset):
     def __init__(self, image_dir, label_dir, input_desc, num_samples, use_median_color = False) -> None:
         super().__init__()
         self.image_dir = image_dir
-        self.label_dir = label_dir
-        
+        self.label_dir = label_dir        
         self.input_desc = input_desc
-
         self.use_median_color = use_median_color
+        self.debug = False
+
         if self.use_median_color:
             self.load_legend_median_values()
             input_df = pd.read_csv(self.input_desc)
@@ -123,7 +128,7 @@ class CMAInferenceDataset(Dataset):
             input_df = input_df.reset_index(drop=True)
             self.input_df = input_df
             #print("length of self.input_df: ", len(self.input_df))
-            assert(len(self.input_df) > 0)
+            # assert(len(self.input_df) > 0)
         else:
             self.input_df = pd.read_csv(self.input_desc)
 
@@ -164,7 +169,8 @@ class CMAInferenceDataset(Dataset):
             rgbArray[..., 0] = rgb[0]
             rgbArray[..., 1] = rgb[1]
             rgbArray[..., 2] = rgb[2]
-            # cv2.imshow('rgb', rgbArray)
+            if self.debug:
+                imshow_r('rgb', rgbArray)
 
             # median_encoded = ((rgb[0] + 1) + (rgb[1]+1)*256 + (rgb[2]+1)*256*256)/256.0**3
             # print(median_encoded)
@@ -176,6 +182,8 @@ class CMAInferenceDataset(Dataset):
             label = np.array(Image.open(label_path).convert("RGB"))
             label = label/255.0
 
+        if self.debug:
+            imshow_r('Image, Label', [image, label], True)
         #image = np.expand_dims(image, axis=-1)
         #label = np.expand_dims(label, axis=-1)
         # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
@@ -197,7 +205,7 @@ class CMAInferenceDataset(Dataset):
 
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
-        self.legend_data = legend_data        
+        self.legend_data = legend_data       
 
 
 def test_cmadataset():
