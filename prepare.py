@@ -257,11 +257,11 @@ def split_train_test(input_dir):
     print(f'length of input files: {len(in_files)}, training len: {len(training_files)} , testing len: {len(test_files)}')
     
     train_df = training_df[training_df.inp_fname.isin(training_files)]
-    train_split_csv = os.path.join(info_dir, args.dataset+"_training_split_files.csv")
+    train_split_csv = os.path.join(info_dir, args.dataset+"_training_files.csv")
     train_df.to_csv(train_split_csv, index=False)
     #df['filename'] = df['filepath_name']
     test_df = training_df[training_df.inp_fname.isin(test_files)]
-    test_split_csv = os.path.join(info_dir, args.dataset+"_testing_split_files.csv") 
+    test_split_csv = os.path.join(info_dir, args.dataset+"_testing_files.csv") 
     test_df.to_csv( test_split_csv, index=False)
     print(f'train_test_split operation on : {input_dir}, info written into: {info_dir} , in {train_split_csv} & {test_split_csv} files')
 

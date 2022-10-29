@@ -2,19 +2,20 @@ import os
 import torch
 
 # common paths (DO NOT CHANGE)
-ROOT_PATH = '/home/suresh/challenges/ai4cma'
-CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/data'
-MINI_CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/mini_data'
-RESULTS_DIR = '/home/suresh/challenges/ai4cma/results'
+#ROOT_PATH = '/home/suresh/challenges/ai4cma'
+ROOT_PATH = '/home/sureshd/code/cma-challenge'
+CHALLENGE_INP_DIR = os.path.join(ROOT_PATH, 'data')
+MINI_CHALLENGE_INP_DIR = os.path.join(ROOT_PATH, 'mini_data')
+RESULTS_DIR = os.path.join(ROOT_PATH, 'results')
 
-TILED_INP_DIR = "/home/suresh/challenges/ai4cma/tiled_inputs"
+TILED_INP_DIR = os.path.join(ROOT_PATH, 'tiled_inputs')
 INFO_DIR = "info"
 INPUTS_DIR = "inputs"
 MASKS_DIR = "masks"
 LEGENDS_DIR = "legends"
 VALIDATION_DIR = "validation"
 
-WORKING_DIR = "/home/suresh/challenges/ai4cma/working_dir"
+WORKING_DIR = os.path.join(ROOT_PATH, 'working_dir')
 
 INF_MODEL_PATH = "submission_v1_model.pth.tar"
 
