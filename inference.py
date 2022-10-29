@@ -6,6 +6,9 @@ from unet import UNET
 import rasterio 
 import numpy as np
 from PIL import Image
+
+from postprocessing import discard_preds_outside_map
+from utils_show import imshow_r
 Image.MAX_IMAGE_PIXELS = None
 from zmq import device
 import img2tiles 
@@ -46,8 +49,7 @@ def setup_inference(model_path):
 
     if torch.cuda.is_available():
         model.cuda()
-    load_checkpoint(model_path, model)
-
+    load_checkpoint(CHEKPOINT_PATH, model)
 
     #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
     model.eval()
@@ -58,6 +60,10 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
     inp_csv = pd.read_csv(csv_file)
     cma_inference_dataset = dataset.CMAInferenceDataset(tiled_input_dir, 
                                 tiled_input_dir, csv_file, None, USE_MEDIAN_COLOR)
+
+    if not len(cma_inference_dataset):
+        return False
+    
     inference_loader = DataLoader(
         cma_inference_dataset,
         batch_size=BATCH_SIZE,
@@ -96,7 +102,7 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
                     print("error in writing file: ", out_file_path)
                     exit()
     
-    return 
+    return True
 
 def convert_mask_to_raster_tif(input_file, output_file):
     # convert the image to a binary raster .tif
@@ -153,7 +159,10 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
     inp_df.to_csv("predict.csv", index=False)
 
     # ship to inference on one image
-    infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
+    success = infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
+
+    if not success:
+        return
 
     # get the original image from tiles
     label_fname = os.path.splitext(label_pattern_fname)[0]
@@ -183,7 +192,24 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
 
     if save_as_tiff:
         convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
+        print(f"raw_prediction {np.unique(raw_prediction, return_counts=True)}")
+        print(f"raw_prediction : {raw_prediction.shape}")
+        imshow_r('raw_prediction', raw_prediction*255, True)
 
+        json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
+        data_dir = 'validation' if args.stage == 'validation' else 'training'
+        legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
+        post_processing_mask = discard_preds_outside_map(legend_json_path, debug=True)
+        print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
+        imshow_r('post_processing_mask', post_processing_mask*255, True)     
+        
+        post_processed_mask = raw_prediction * post_processing_mask
+        print(f"post_processed mask {np.unique(post_processing_mask, return_counts=True)}")
+        imshow_r('post_processed', post_processed_mask*255, True)
+        cv2.imwrite(mask_out_fname, post_processed_mask)
+
+        if save_as_tiff:
+            convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
 
     #remove the output directory
     assert(os.path.isdir(temp_out_dir))
@@ -321,11 +347,7 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
         # validation_info.append([in_file_name, img_ht, img_wd, legend_type, label_fname])
 
 
-
-    return
-
-
-def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True, model_path=CHEKPOINT_PATH):
+def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
     # input_info_df = get_input_info(input_dir=input_dir)
     # check if the directories exist
     # model, device = setup_inference()
@@ -492,7 +514,7 @@ def process_args(args):
 
     model_path = args.model
     print(f'Running inference with the following parameters')
-    print(f'input_dir = {input_dir}, tiled_inp_dir = {vinp_dir}, tiled_out_dir = {vout_dir}, results_dir = {results_dir}, tile_size = {tile_size}, csv_file = {csv_file}, rem_csv_file = {rem_csv_file}, model = {model_path}')
+    print(f'input_dir = {input_dir}\ntiled_inp_dir = {vinp_dir}\ntiled_out_dir = {vout_dir} \nresults_dir = {results_dir} \ntile_size = {tile_size} \ncsv_file = {csv_file} \nrem_csv_file = {rem_csv_file}')
 
     # prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
     # csv_file = "../tiled_inputs/info/remaining_validation_files.csv"
