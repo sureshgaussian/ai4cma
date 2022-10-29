@@ -1,18 +1,21 @@
 from ctypes import c_void_p
+from unet import UNET
 import torch
-import torchvision
 from dataset import CMADataset
 from torch.utils.data import DataLoader
 from config import *
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
 import json
 from utils_show import imshow_r, to_rgb
 
-def save_checkpoint(state, filename="./temp/my_checkpoint.pth.tar"):
+def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
+    checkpoint = {
+        "state_dict": model.state_dict(),
+        "optimizer":optimizer.state_dict(),
+    }
     print(f"=> Saving checkpoint to {filename}")
-    torch.save(state, filename)
+    torch.save(checkpoint, filename)
 
 def load_checkpoint(checkpoint_path, model):
     print(f"=> Loading checkpoint from {checkpoint_path}")
@@ -32,7 +35,8 @@ def get_loaders(
     num_workers=4,
     pin_memory=True,
     num_samples = None,
-    use_median_color = False
+    use_median_color = False,
+    persistent_workers = False
 ):
     train_ds = CMADataset(
         image_dir=train_img_dir,
@@ -40,7 +44,7 @@ def get_loaders(
         mask_dir=train_mask_dir,
         input_desc=train_desc,
         num_samples=num_samples,
-        use_median_color=use_median_color
+        use_median_color=use_median_color,
     )
 
     train_loader = DataLoader(
@@ -49,6 +53,7 @@ def get_loaders(
         num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=True,
+        persistent_workers=persistent_workers
     )
     # how is this possible?
     val_ds = CMADataset(
@@ -65,30 +70,43 @@ def get_loaders(
         num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=False,
+        persistent_workers=persistent_workers,
     )
 
     return train_loader, val_loader
 
-def check_accuracy(loader, model, device="cuda"):
-    num_correct = 0
-    num_pixels = 0
-    dice_score = 0
+def check_accuracy(loader, model, device="cuda", num_batches = 50):
+
+    batch_dice_scores = []
     model.eval()
+    if num_batches == 'all':
+        num_batches = len(loader)
 
     with torch.no_grad():
-        for x, y in loader:
+        for batch_ix, (x, y) in enumerate(loader):
             x = x.to(device, dtype=torch.float)
             y = y.to(device).unsqueeze(1)
-            preds = torch.sigmoid(model(x)['out'])
+            if isinstance(model, UNET):
+                preds = model(x)
+            else:
+                preds = model(x)['out']
             preds = (preds > 0.5).float()
-            num_correct += (preds == y).sum()
-            num_pixels += torch.numel(preds)
-            dice_score += (2 * (preds * y).sum()) / (
+            batch_dice_scores.append((2 * (preds * y).sum()) / (
                 (preds + y).sum() + 1e-8
-            )
+            ))
+            if batch_ix == num_batches:
+                break
 
-    print(f"Dice score: {dice_score/len(loader)}")
+    dice_avg = torch.mean(torch.tensor(batch_dice_scores))
+    dice_std = torch.std(torch.tensor(batch_dice_scores))
+    dice_median = torch.median(torch.tensor(batch_dice_scores))
+
+    print(f"Dice score average: {dice_avg}")
+    print(f"Dice score std : {dice_std}")
+    print(f"Dice score median : {dice_median}")
+    
     model.train()
+    return dice_avg, dice_std, dice_median
 
 def save_predictions_as_imgs(
     loader, model, folder="saved_images/", device="cuda"
@@ -98,18 +116,14 @@ def save_predictions_as_imgs(
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device, dtype=torch.float)
         with torch.no_grad():
-            preds = torch.sigmoid(model(x)['out'])
+            if isinstance(model, UNET):
+                preds = model(x)
+            else:
+                preds = model(x)['out']
             preds = (preds > 0.5).float()
         overlays = draw_contours(x, preds, y)
         cv2.imwrite(f"{folder}/pred_{idx}_{EXP_NAME}.png", overlays)
-        # torchvision.utils.save_image(
-        #     overlays, f"{folder}/pred_{idx}_{EXP_NAME}.png"
-        # )
-        # torchvision.utils.save_image(
-        #     preds, f"{folder}/pred_{idx}_{EXP_NAME}.png"
-        # )
-        # torchvision.utils.save_image(y.unsqueeze(1).float(), f"{folder}/{idx}.png")
-        if idx == 5:
+        if idx == 15:
             break
     # set model back to training mode
     model.train()
@@ -126,7 +140,10 @@ def merge_images(image_batch, size):
     return img
 
 def draw_contours(img_batch, pred_batch, target_batch):
-    img_batch = ((img_batch*255).detach().cpu().numpy()).astype('uint8')
+    '''
+    Given batch of img, pred and target, draw contours to visualize the results
+    '''
+    img_batch = (img_batch.detach().cpu().numpy()*255).astype('uint8')
     pred_batch = (pred_batch.detach().cpu().numpy()*255).astype('uint8')
     target_batch = (target_batch.detach().cpu().numpy()*255).astype('uint8')
     overlays = []
@@ -156,7 +173,6 @@ def draw_contours(img_batch, pred_batch, target_batch):
     im_merged = merge_images(overlays, [2,8])
 
     return im_merged*255
-
 
 def load_legend_data(img_name):
     '''
