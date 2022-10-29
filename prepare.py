@@ -183,9 +183,15 @@ def prepare_balanced_empty_tiles(input_csv, output_csv, ratio=0.6):
     else:
         input_df = df 
     
+    # filter for only polys
+    # input_df['legend_type'] = 
+    input_df['legend_type'] = input_df['tile_legend'].apply(lambda x : x.replace('.tif','').split("_")[-1])
+    poly_df = input_df[input_df['legend_type'] == 'poly']
+
     print(f'Input df len = {len(df)}, output = {len(input_df)} ')
     
     input_df.to_csv(output_csv, index=False)
+    poly_df.to_csv(output_csv.replace('.csv', '_poly.csv'), index=False)
     return 
 
 def get_input_info(input_dir):

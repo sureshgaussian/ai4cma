@@ -3,7 +3,7 @@ import torch
 import os
 # import albumentations as A
 # from albumentations.pytorch import ToTensorV2
-from tqdm import tqdm
+#from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from unet import UNET
@@ -20,9 +20,9 @@ from utils import (
     save_predictions_as_imgs,
 )
 
-from dice_loss import (
-    GDiceLossV2
-)
+# # from dice_loss import (
+# #     GDiceLossV2
+# )
 
 def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
     # print(f'In train function')
@@ -67,15 +67,16 @@ def train_fn(epoch_index, loader, model, optimizer, loss_fn, scaler):
 
 def main(args):
 
+    POLY_TRAINING_CSV = "balanced_tiles_poly.csv"
     TRAIN_IMG_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_training/inputs")
     TRAIN_LABEL_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_training/legends")
     TRAIN_MASK_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_training/masks")
-    TRAIN_DESC = os.path.join(TILED_INP_DIR, args.dataset+"_training/info/balanced_tiles.csv")
+    TRAIN_DESC = os.path.join(TILED_INP_DIR, args.dataset+"_training/info/"+POLY_TRAINING_CSV)
 
     TEST_IMG_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_testing/inputs")
     TEST_LABEL_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_testing/legends")
     TEST_MASK_DIR = os.path.join(TILED_INP_DIR, args.dataset+"_testing/masks")
-    TEST_DESC = os.path.join(TILED_INP_DIR, args.dataset+"_testing/info/balanced_tiles.csv")
+    TEST_DESC = os.path.join(TILED_INP_DIR, args.dataset+"_testing/info/"+POLY_TRAINING_CSV)
 
 
     model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
@@ -133,7 +134,9 @@ def main(args):
         save_checkpoint(checkpoint, checkpoint_path)
 
         # check accuracy
+        print(f'Training metrics...')
         check_accuracy(train_loader, model, device=DEVICE)
+        print(f'Testing metrics...')
         check_accuracy(val_loader, model, device=DEVICE)
 
         # print some examples to a folder. Use train loader for dry runs

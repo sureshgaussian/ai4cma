@@ -6,7 +6,7 @@ import rasterio
 import numpy as np
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
-from zmq import device
+#from zmq import device
 import img2tiles 
 import shutil 
 import glob
