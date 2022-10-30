@@ -1,4 +1,7 @@
+import argparse 
+import ast 
 from math import nan, isnan
+from config import TILE_SIZE
 import cv2
 import rasterio
 from PIL import Image
@@ -58,6 +61,39 @@ def check_non_zero_tile(input_file):
     else:
         return False
 
+def check_in_map(info_df, in_map_dir):
+    prev_file_name = 'xjalkjsdlkfjlkasdf'
+    in_map = []
+    total_files = len(info_df)
+    # sort the dataframe for faster processing; skips reading inp file again and again
+
+    info_df = info_df.sort_values(by='orig_file')
+    id = 0
+    for idx, row in info_df.iterrows():
+        if id % 10 == 0:
+            print(f'finished processing {id} out of {total_files}..')
+        id = id+1
+        input_file = row['orig_file']
+        if input_file != prev_file_name:
+            img = Image.open(os.path.join(in_map_dir, input_file.replace('.tif', '.png')))
+            prev_file_name = input_file
+        
+        tile_file_name = row['tile_inp']
+        split_fname = os.path.splitext(tile_file_name)[0]
+        tx = int(split_fname.split("-")[-2])
+        ty = int(split_fname.split("-")[-1])
+        tile_size = row['tile_size']
+        bb = (tx*tile_size, ty*tile_size, (tx+1)*tile_size, (ty+1)*tile_size)
+        crop_img = img.crop(bb)
+        if np.sum(crop_img) != 0:
+            in_map.append(True)
+        else:
+            in_map.append(False)
+    
+    info_df['in_map'] = in_map 
+    # resort with index to get into original order
+    info_df = info_df.sort_index(axis=0)
+    return info_df
 
 
 def get_non_zero_tiles(input_dir, filename):
@@ -218,8 +254,93 @@ def test_stitch_images():
     stitch_image_from_tiles(tile_size, "AK_Bettles_ad_poly", "./temp", "AK_Bettles_ad_poly_stitched.jpg", (512,512))
     return 
 
+def scale_pack_legend(input_tif_file, legend_bb, output_sp_legened_file, tile_size=TILE_SIZE):
+    try:
+        img = Image.open( input_tif_file)
+    except:
+        print(f"error in opening {input_tif_file}")
+        print(f'yo yo yo')
+        return None 
+    width = img.width
+    height = img.height
+    new_img = Image.new('RGB', (tile_size, tile_size))
+
+    # read the label file
+    bb = bounding_box(legend_bb)
+    label_img = img.crop(bb)
+    # tile_siz/4 rescaled, and rotated image
+    assert(tile_size % 16 == 0)
+    scaled_by_4 = label_img.resize((tile_size//2, tile_size//2))
+    scaled_by_4_90d = scaled_by_4.rotate(90)
+    scaled_by_4_270d = scaled_by_4.rotate(270)
+    scaled_by_8 = label_img.resize((tile_size//4, tile_size//4))
+    scaled_by_8_90d = scaled_by_8.rotate(90)
+    scaled_by_8_45d = scaled_by_8.rotate(45, fillcolor=(255,255,255))
+    scaled_by_8_315d = scaled_by_8.rotate(315, fillcolor=(255,255,255))
+
+    # scaled_by_16 = label_img.resize((tile_size//8, tile_size//8))
+    # scaled_by_16_90d = scaled_by_16.rotate(90)
+    # scaled_by_16_45d = scaled_by_16.rotate(45)
+    # scaled_by_16_225d = scaled_by_16.rotate(225)
+    # scaled_by_16_22d = scaled_by_16.rotate(22)
+    # scaled_by_16_247d = scaled_by_16.rotate(247)
+    # scaled_by_16_67d = scaled_by_16.rotate(67)
+    # scaled_by_16_203d = scaled_by_16.rotate(203)
+    new_img.paste(scaled_by_4, (0,0))
+    new_img.paste(scaled_by_4_90d, (tile_size//2,0))
+    new_img.paste(scaled_by_4_270d, (0,tile_size//2))
+
+    new_img.paste(scaled_by_8, (tile_size//2, tile_size//2))
+    new_img.paste(scaled_by_8_90d, (tile_size//2+tile_size//4, tile_size//2))
+    new_img.paste(scaled_by_8_45d, (tile_size//2+tile_size//4, tile_size//2+tile_size//4))
+    new_img.paste(scaled_by_8_315d, (tile_size//2, tile_size//2+tile_size//4))
+
+    # new_img.paste(scaled_by_16, (tile_size//2, tile_size//2))
+    # new_img.paste(scaled_by_16_90d, (tile_size//2, tile_size//8+tile_size//2))
+    # new_img.paste(scaled_by_16_45d, (tile_size//2, tile_size//4+tile_size//2))
+    # new_img.paste(scaled_by_16_225d, (tile_size//2, tile_size//2+3*tile_size//8))
+    # new_img.paste(scaled_by_16_67d, (tile_size//2+tile_size//8, tile_size//2))
+    # new_img.paste(scaled_by_16_22d, (tile_size//2+tile_size//8, tile_size//8+tile_size//2))
+    # new_img.paste(scaled_by_16_247d, (tile_size//2+tile_size//8, tile_size//4+tile_size//2))
+    # new_img.paste(scaled_by_16_203d, (tile_size//2+tile_size//8, tile_size//2+3*tile_size//8))
+    # temp_img = new_img.crop((tile_size//2, tile_size//2, tile_size//2+tile_size//4, tile_size//2+tile_size//4))
+    # temp_img = temp_img.rotate(15)
+    # new_img.paste(temp_img, (tile_size//2+tile_size//4, tile_size//2))
+
+
+    new_img.save(output_sp_legened_file)
+    # return os.path.basename(output_sp_legened_file)
+    return
+
+def main(args):
+    inp_csv = args.info_csv
+    tile_size = args.tile_size
+    output_dir = args.output_dir
+    input_dir = args.input_dir
+    csv_df = pd.read_csv(inp_csv)
+    total_files = len(csv_df)
+    for idx, row in csv_df.iterrows():
+        if idx % 10 == 0:
+            print(f'finished processing {idx} out of {total_files}...')
+        # output_legend_file = os.path.join(output_dir, row['mask_fname']).replace('.tif', '.png')
+        output_legend_file = os.path.join(output_dir, row['mask_fname'])
+        input_tif_file = os.path.join(input_dir, row['inp_fname'])
+        bb = ast.literal_eval(row['points'])
+        scale_pack_legend(input_tif_file, bb, output_legend_file, tile_size=tile_size)
+
+
 if __name__ == '__main__':
-    
-    test_split_images_into_tiles()
-    test_stitch_images()
+    # parser = argparse.ArgumentParser(description='Training parser')
+    # parser.add_argument('-v', '--info_csv', help='info csv file like challenge_training_files.csv')
+    # parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
+    # parser.add_argument('-o', '--output_dir', help='which directory to write the legends into')
+    # parser.add_argument('-i', '--input_dir', help='which directory are the input tif files in')
+    # args = parser.parse_args()
+    # main(args)   
+    in_df = pd.read_csv("../tiled_inputs/challenge_testing/info/balanced_tiles.csv")
+    # in_df = in_df.sort_values(by='orig_file')
+    out_df = check_in_map(in_df, "../downscaled_data/masks_upscaled/")
+    # out_df.sort_index(axis=0)
+    out_df.to_csv("../tiled_inputs/challenge_testing/info/balanced_tiles_in_map.csv", index=False)
+    print(np.sum(out_df.in_map))
     

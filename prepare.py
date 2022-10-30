@@ -9,7 +9,8 @@ import numpy as np
 from posixpath import splitext
 from config import (
     CHALLENGE_INP_DIR, 
-    MINI_CHALLENGE_INP_DIR, 
+    MINI_CHALLENGE_INP_DIR,
+    ROOT_PATH, 
     TILED_INP_DIR, INFO_DIR, TILE_SIZE,
     INPUTS_DIR, MASKS_DIR, LEGENDS_DIR,
     TRAIN_TEST_SPLIT_RATIO,
@@ -299,6 +300,7 @@ def tilize_inputs(input_dir, stage, dataset, tile_size):
     
     csv_file = os.path.join(csv_file_dir, "all_tiles.csv")
     df = pd.DataFrame(input_descriptors, columns = ["orig_file", "orig_ht", "orig_wd", "tile_inp", "tile_legend", "tile_mask", "empty_tile", "tile_size"])
+    df = img2tiles.check_in_map(df, os.path.join(ROOT_PATH, "downscaled_data/masks_upscaled"))
 
     df.to_csv(csv_file, index=False)
     balanced_csv_files = os.path.join(csv_file_dir, "balanced_tiles.csv")
