@@ -30,6 +30,7 @@ TEST_DESC = os.path.join(TEST_DATA_DIR, 'info/balanced_tiles.csv')
 
 WORKING_DIR = "/home/suresh/challenges/ai4cma/working_dir"
 
+MODEL_NAME = "deeplabv3"
 INF_MODEL_PATH = "submission_v1_model.pth.tar"
 
 # Hyperparameters etc.

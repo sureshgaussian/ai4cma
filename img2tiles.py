@@ -328,19 +328,23 @@ def main(args):
         bb = ast.literal_eval(row['points'])
         scale_pack_legend(input_tif_file, bb, output_legend_file, tile_size=tile_size)
 
-
-if __name__ == '__main__':
-    # parser = argparse.ArgumentParser(description='Training parser')
-    # parser.add_argument('-v', '--info_csv', help='info csv file like challenge_training_files.csv')
-    # parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
-    # parser.add_argument('-o', '--output_dir', help='which directory to write the legends into')
-    # parser.add_argument('-i', '--input_dir', help='which directory are the input tif files in')
-    # args = parser.parse_args()
-    # main(args)   
+def run_in_map():
     in_df = pd.read_csv("../tiled_inputs/challenge_testing/info/balanced_tiles.csv")
     # in_df = in_df.sort_values(by='orig_file')
     out_df = check_in_map(in_df, "../downscaled_data/masks_upscaled/")
     # out_df.sort_index(axis=0)
     out_df.to_csv("../tiled_inputs/challenge_testing/info/balanced_tiles_in_map.csv", index=False)
     print(np.sum(out_df.in_map))
-    
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Training parser')
+    parser.add_argument('-v', '--info_csv', help='info csv file like challenge_training_files.csv')
+    parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
+    parser.add_argument('-o', '--output_dir', help='which directory to write the legends into')
+    parser.add_argument('-i', '--input_dir', help='which directory are the input tif files in')
+    args = parser.parse_args()
+    main(args)   
+
+    ## Enable the following to run through "in_map"
+    # run_in_map()
