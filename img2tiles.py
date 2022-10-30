@@ -61,6 +61,39 @@ def check_non_zero_tile(input_file):
     else:
         return False
 
+def check_in_map(info_df, in_map_dir):
+    prev_file_name = 'xjalkjsdlkfjlkasdf'
+    in_map = []
+    total_files = len(info_df)
+    # sort the dataframe for faster processing; skips reading inp file again and again
+
+    info_df = info_df.sort_values(by='orig_file')
+    id = 0
+    for idx, row in info_df.iterrows():
+        if id % 10 == 0:
+            print(f'finished processing {id} out of {total_files}..')
+        id = id+1
+        input_file = row['orig_file']
+        if input_file != prev_file_name:
+            img = Image.open(os.path.join(in_map_dir, input_file.replace('.tif', '.png')))
+            prev_file_name = input_file
+        
+        tile_file_name = row['tile_inp']
+        split_fname = os.path.splitext(tile_file_name)[0]
+        tx = int(split_fname.split("-")[-2])
+        ty = int(split_fname.split("-")[-1])
+        tile_size = row['tile_size']
+        bb = (tx*tile_size, ty*tile_size, (tx+1)*tile_size, (ty+1)*tile_size)
+        crop_img = img.crop(bb)
+        if np.sum(crop_img) != 0:
+            in_map.append(True)
+        else:
+            in_map.append(False)
+    
+    info_df['in_map'] = in_map 
+    # resort with index to get into original order
+    info_df = info_df.sort_index(axis=0)
+    return info_df
 
 
 def get_non_zero_tiles(input_dir, filename):
@@ -297,11 +330,17 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Training parser')
-    parser.add_argument('-v', '--info_csv', help='info csv file like challenge_training_files.csv')
-    parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
-    parser.add_argument('-o', '--output_dir', help='which directory to write the legends into')
-    parser.add_argument('-i', '--input_dir', help='which directory are the input tif files in')
-    args = parser.parse_args()
-    main(args)    
+    # parser = argparse.ArgumentParser(description='Training parser')
+    # parser.add_argument('-v', '--info_csv', help='info csv file like challenge_training_files.csv')
+    # parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
+    # parser.add_argument('-o', '--output_dir', help='which directory to write the legends into')
+    # parser.add_argument('-i', '--input_dir', help='which directory are the input tif files in')
+    # args = parser.parse_args()
+    # main(args)   
+    in_df = pd.read_csv("../tiled_inputs/challenge_testing/info/balanced_tiles.csv")
+    # in_df = in_df.sort_values(by='orig_file')
+    out_df = check_in_map(in_df, "../downscaled_data/masks_upscaled/")
+    # out_df.sort_index(axis=0)
+    out_df.to_csv("../tiled_inputs/challenge_testing/info/balanced_tiles_in_map.csv", index=False)
+    print(np.sum(out_df.in_map))
     
