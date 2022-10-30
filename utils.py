@@ -1,4 +1,4 @@
-from ctypes import c_void_p
+from cv2 import dilate
 from unet import UNET
 import torch
 from dataset import CMADataset
@@ -7,7 +7,9 @@ from config import *
 import numpy as np
 import cv2
 import json
+from glob import glob
 from utils_show import imshow_r, to_rgb
+from PIL import Image
 
 def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
     checkpoint = {
@@ -45,23 +47,45 @@ def get_loaders(
         input_desc=train_desc,
         num_samples=num_samples,
         use_median_color=use_median_color,
+        do_aug=True
     )
-
     train_loader = DataLoader(
         train_ds,
         batch_size=batch_size,
         num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=True,
-        persistent_workers=persistent_workers
+        persistent_workers=persistent_workers,
+        drop_last=True
     )
-    # how is this possible?
+
+    # A mini train dataset to have a stable accuracy check while training.
+    # Using num_samples param to achieve this. Get metrics on a fixed set of full images.
+    train_ds_mini = CMADataset(
+        image_dir=train_img_dir,
+        label_dir=train_label_dir,
+        mask_dir=train_mask_dir,
+        input_desc=train_desc,
+        num_samples=5,
+        use_median_color=use_median_color,
+        do_aug=True
+    )
+    train_loader_mini = DataLoader(
+        train_ds_mini,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        shuffle=True,
+        persistent_workers=persistent_workers,
+        drop_last=True
+    )
+
     val_ds = CMADataset(
         image_dir=val_img_dir,
         label_dir=val_label_dir,
         mask_dir=val_mask_dir,
         input_desc=val_desc,
-        num_samples=num_samples,
+        num_samples=5,
         use_median_color=use_median_color
     )
     val_loader = DataLoader(
@@ -71,17 +95,19 @@ def get_loaders(
         pin_memory=pin_memory,
         shuffle=False,
         persistent_workers=persistent_workers,
+        drop_last=True
     )
 
-    return train_loader, val_loader
+    return train_loader, val_loader, train_loader_mini
 
 def check_accuracy(loader, model, device="cuda", num_batches = 50):
 
-    batch_dice_scores = []
+    
     model.eval()
     if num_batches == 'all':
         num_batches = len(loader)
 
+    batch_dice_scores = []
     with torch.no_grad():
         for batch_ix, (x, y) in enumerate(loader):
             x = x.to(device, dtype=torch.float)
@@ -112,6 +138,7 @@ def save_predictions_as_imgs(
     loader, model, folder="saved_images/", device="cuda"
 ):
     # set model to evaluation mode, disbaling training mode
+    os.makedirs(folder, exist_ok=True)
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device, dtype=torch.float)
@@ -231,3 +258,18 @@ if __name__ == '__main__':
 
         print(img_path, target_path, pred_path)
         draw_contours_big(img_path, pred_path, target_path)
+
+    # # Test dilation
+    # mask_paths = glob(os.path.join(TRAIN_MASK_DIR, '*.tif'))
+    # for mask_path in mask_paths:
+    #     if 'poly' in mask_path:
+    #         continue
+    #     if 'pt' in mask_path:
+    #         continue
+    #     mask = cv2.imread(mask_path, 0)
+    #     # img = cv2.imread(mask_path.replace('masks', 'inputs'))
+    #     # imshow_r('img', img, True)
+    #     if np.sum(mask):
+    #         dilate_mask(mask)
+    #         break
+

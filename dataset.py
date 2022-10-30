@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import DataLoader
 from cProfile import label
 import os
@@ -10,22 +11,30 @@ import pandas as pd
 import random
 import json
 from config import ROOT_PATH
+import torchvision.transforms.functional as TF
+import PIL.ImageOps
 
+from utils_show import dilate_mask
 from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
-    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type, use_median_color = False, ) -> None:
+    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'pt', use_median_color = False, do_aug = False) -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir
+        self.sped_dir = label_dir.replace('legends', 'sped_legends')
         self.mask_dir = mask_dir
         self.input_desc = input_desc
         self.use_median_color = use_median_color
         self.legend_type = legend_type
-        self.debug = False
-
+        self.do_aug = do_aug
+        self.debug = True
+       
         input_df = pd.read_csv(self.input_desc)
+
+        # Filter by 'poly' or 'line' or 'pt'
+        input_df = input_df[input_df['tile_legend'].str.contains(legend_type)]
 
         if legend_type == 'poly':
             if self.use_median_color:
@@ -36,8 +45,9 @@ class CMADataset(Dataset):
                 input_df.drop(columns=['stripped'], inplace=True)
                 input_df.reset_index(drop=True, inplace=True)
 
-        # Filter by 'poly' or 'line' or 'pt'
-        input_df = input_df[input_df['tile_legend'].str.contains(legend_type)]
+        # Empty tiles do not contribute in semantic segmentation
+        input_df = input_df[input_df['empty_tile'] == True]
+        input_df.reset_index(drop=True, inplace=True)
 
         if num_samples:
             sample_org_files = input_df['orig_file'].unique()[:num_samples]
@@ -59,44 +69,62 @@ class CMADataset(Dataset):
         img_path = os.path.join(self.image_dir,reqd_row["tile_inp"])
         label_path = os.path.join(self.label_dir,reqd_row["tile_legend"])
         mask_path = os.path.join(self.mask_dir,reqd_row["tile_mask"])
+        sped_label_path = label_path.replace('legends', 'sped_legends')
 
-        image = np.array(Image.open(img_path).convert("RGB"))
-        image = image/255.0
+        image = Image.open(img_path).convert("RGB")
 
-        #Preprocess label based on using the median value
-        if self.use_median_color:
+        # Get the label that is to be concatenated with input
+        if self.legend_type == 'poly':
             rgb = self.legend_data[reqd_row["tile_legend"].split('.')[0]]
-
-            # Check if the median value matches with the image patch
-            rgbArray = np.zeros(image.shape, 'uint8')
-            rgbArray[..., 0] = rgb[0]
-            rgbArray[..., 1] = rgb[1]
-            rgbArray[..., 2] = rgb[2]
-            if self.debug:
-                imshow_r('rgb', rgbArray, True)
-
-            # median_encoded = ((rgb[0] + 1) + (rgb[1]+1)*256 + (rgb[2]+1)*256*256)/256.0**3
-            # print(median_encoded)
-            # label = np.full(image.shape[:2], median_encoded)
-            # cv2.imshow('label', label*255)
-            label = rgbArray/255.0
-
+            label = Image.new("RGB", image.size, tuple(rgb))
         else:
-            label = np.array(Image.open(label_path).convert("RGB"))
-            label = label/255.0
+            if os.path.exists(sped_label_path):
+                label = Image.open(sped_label_path).convert("RGB")
+            else: # TODO : this needs to go away. We are using till suresh creates sped label folder for test
+                label = Image.open(label_path).convert("RGB")
+
+        label_mask = Image.open(mask_path).convert("L")
+
+        # Widen lines and points in the mask(dilate)
+        if self.legend_type in ['pt', 'line']:
+            label_mask = dilate_mask(label_mask)
+
+        # Perform the augmentations
+        # TODO : The augmentation block to be replaced with torch compositions
+        if self.debug:
+            imshow_r('Original Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+
+        if self.do_aug and random.random() > 0.5:
+            image = TF.hflip(image)
+            label_mask = TF.hflip(label_mask)
+
+            if self.debug:
+                imshow_r('H flipped Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+        
+        if self.do_aug and random.random() > 0.5:
+            image = TF.vflip(image)
+            label_mask = TF.vflip(label_mask)
+
+            if self.debug:
+                imshow_r('v flipped Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+
+        if self.do_aug and random.random() > 0.5:
+            image = PIL.ImageOps.invert(image)
+            label = PIL.ImageOps.invert(label)
+
+            if self.debug:
+                imshow_r('Inverted Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
 
         if self.debug:
             imshow_r('Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
 
-        input = np.dstack((image, label))
+        # Convert to tensor finally
+        image = TF.to_tensor(image)
+        label = TF.to_tensor(label)
+        label_mask = np.array(label_mask)
 
-        # Scaling is done seperately for image and mask. Hence we dont need this. 
-        # input = input/255.0
-
-        label_mask = np.array(Image.open(mask_path).convert("L"))
-
-        input= np.moveaxis(input, -1, 0)
-        # label_mask= np.moveaxis(label_mask, -1, 0)
+        # Concatenate image and label        
+        input = torch.cat((image, label))
 
         return input, label_mask
 
