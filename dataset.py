@@ -137,34 +137,39 @@ class CMADataset(Dataset):
 
 
 class CMAInferenceDataset(Dataset):
-    def __init__(self, image_dir, label_dir, input_desc, num_samples, use_median_color = False) -> None:
+    def __init__(self, image_dir, label_dir, input_desc, num_samples, use_median_color = False, legend_type="line") -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir        
         self.input_desc = input_desc
         self.use_median_color = use_median_color
         self.debug = False
+        self.legend_type = legend_type
+        
+        input_df = pd.read_csv(self.input_desc)
 
-        if self.use_median_color:
-            self.load_legend_median_values()
-            input_df = pd.read_csv(self.input_desc)
-            # print("length of input_df: ", len(input_df))
-            input_df['stripped'] = input_df['label_pattern_fname'].apply(lambda x : x.split('.')[0])
-            # print("length of input_df: ", input_df['stripped'])
-            input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
-            # print("length of input_df: ", len(input_df))
-            input_df = input_df.reset_index(drop=True)
-            self.input_df = input_df
-            #print("length of self.input_df: ", len(self.input_df))
-            # assert(len(self.input_df) > 0)
-        else:
-            self.input_df = pd.read_csv(self.input_desc)
+
+        if legend_type == 'poly':
+            if self.use_median_color:
+                self.load_legend_median_values()
+                # print("length of input_df: ", len(input_df))
+                input_df['stripped'] = input_df['label_pattern_fname'].apply(lambda x : x.split('.')[0])
+                # print("length of input_df: ", input_df['stripped'])
+                input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
+                # print("length of input_df: ", len(input_df))
+                input_df = input_df.reset_index(drop=True)
+                self.input_df = input_df
+                print("length of self.input_df: ", len(self.input_df))
+                assert(len(self.input_df) > 0)
+            else:
+                self.input_df = pd.read_csv(self.input_desc)
 
         if num_samples:
             sample_org_files = self.input_df['inp_file_name'].unique()[:num_samples]
             input_df = self.input_df[self.input_df['inp_file_name'].isin(sample_org_files)]
             input_df = input_df.reset_index(drop=True)
-            self.input_df = input_df
+        
+        self.input_df = input_df
 
         #print('Non empty label distribution : ', self.input_df['empty_tile'].value_counts())
 
@@ -179,50 +184,31 @@ class CMAInferenceDataset(Dataset):
         reqd_row = self.input_df.loc[index]
         img_path = os.path.join(self.image_dir,reqd_row["in_tile"])
         label_path = os.path.join(self.label_dir,reqd_row["label_pattern_fname"])
+        sped_label_path = label_path.replace('legends', 'sped_legends')
         mask_tile_name = reqd_row["mask_tile_name"]
 
         image = np.array(Image.open(img_path).convert("RGB"))
-        image = image/255.0
+        # image = image/255.0
 
-        #Preprocess label based on using the median value
-        if self.use_median_color:
-            rgb = self.legend_data[reqd_row["label_pattern_fname"].split('.')[0]]
-            if len(rgb) == 1:
-                trgb = rgb*3
-                rgb = trgb 
-                assert(len(rgb) == 3)
-
-            # Check if the median value matches with the image patch
-            rgbArray = np.zeros(image.shape, 'uint8')
-            rgbArray[..., 0] = rgb[0]
-            rgbArray[..., 1] = rgb[1]
-            rgbArray[..., 2] = rgb[2]
-            if self.debug:
-                imshow_r('rgb', rgbArray)
-
-            # median_encoded = ((rgb[0] + 1) + (rgb[1]+1)*256 + (rgb[2]+1)*256*256)/256.0**3
-            # print(median_encoded)
-            # label = np.full(image.shape[:2], median_encoded)
-            # cv2.imshow('label', label*255)
-            label = rgbArray/255.0
-
+        # Get the label that is to be concatenated with input
+        if self.legend_type == 'poly':
+            rgb = self.legend_data[reqd_row["tile_legend"].split('.')[0]]
+            label = Image.new("RGB", image.size, tuple(rgb))
         else:
-            label = np.array(Image.open(label_path).convert("RGB"))
-            label = label/255.0
+            if os.path.exists(sped_label_path):
+                label = Image.open(sped_label_path).convert("RGB")
+            else: # TODO : this needs to go away. We are using till suresh creates sped label folder for test
+                label = Image.open(label_path).convert("RGB")
 
         if self.debug:
             imshow_r('Image, Label', [image, label], True)
-        #image = np.expand_dims(image, axis=-1)
-        #label = np.expand_dims(label, axis=-1)
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
-        input = np.dstack((image, label))
 
-        # Scaling is done seperately for image and mask. Hence we dont need this. 
-        # input = input/255.0
-
-        # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
-        input= np.moveaxis(input, -1, 0)
-        # label_mask= np.moveaxis(label_mask, -1, 0)
+        # how come no normalization?
+        # print(f'max of image is {np.max(np.array(image))}')
+        image = TF.to_tensor(image)
+        # print(f'max of image is {np.max(np.array(image))}')
+        label = TF.to_tensor(label)
+        input = torch.cat((image, label))
 
         # cv2.imshow('test', cv2.hconcat([image, label, np.stack((label_mask*255,)*3, axis=-1)]))
         return input, mask_tile_name

@@ -49,7 +49,7 @@ def setup_inference(model_path):
 
     if torch.cuda.is_available():
         model.cuda()
-    load_checkpoint(CHEKPOINT_PATH, model)
+    load_checkpoint(model_path, model)
 
     #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
     model.eval()
@@ -62,6 +62,7 @@ def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
                                 tiled_input_dir, csv_file, None, USE_MEDIAN_COLOR)
 
     if not len(cma_inference_dataset):
+        print(f'Length of input to inference is zero..')
         return False
     
     inference_loader = DataLoader(
@@ -118,6 +119,9 @@ def convert_mask_to_raster_tif(input_file, output_file):
     assert(width == image.width)
     assert(height == image.height)
     image = np.array(image)
+
+    image = image*250
+
     if len(np.unique(image)) > 2:
         print(f'{input_file} has values >2 ')
         exit(0)
@@ -162,6 +166,7 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
     success = infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
 
     if not success:
+        print(f'Something is off')
         return
 
     # get the original image from tiles
@@ -190,26 +195,26 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
         cv2.imwrite(mask_out_fname, post_processed_mask)
 
 
+    # if save_as_tiff:
+    #     convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
+    #     print(f"raw_prediction {np.unique(raw_prediction, return_counts=True)}")
+    #     print(f"raw_prediction : {raw_prediction.shape}")
+    #     # imshow_r('raw_prediction', raw_prediction*255, True)
+
+    #     json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
+    #     data_dir = 'validation' if args.stage == 'validation' else 'training'
+    #     legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
+    #     post_processing_mask = discard_preds_outside_map(legend_json_path, debug=False)
+    #     print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
+    #     # imshow_r('post_processing_mask', post_processing_mask*255, True)     
+        
+    #     post_processed_mask = raw_prediction * post_processing_mask
+    #     print(f"post_processed mask {np.unique(post_processing_mask, return_counts=True)}")
+    #     # imshow_r('post_processed', post_processed_mask*255, True)
+    #     cv2.imwrite(mask_out_fname, post_processed_mask)
+
     if save_as_tiff:
         convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
-        print(f"raw_prediction {np.unique(raw_prediction, return_counts=True)}")
-        print(f"raw_prediction : {raw_prediction.shape}")
-        imshow_r('raw_prediction', raw_prediction*255, True)
-
-        json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
-        data_dir = 'validation' if args.stage == 'validation' else 'training'
-        legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
-        post_processing_mask = discard_preds_outside_map(legend_json_path, debug=True)
-        print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
-        imshow_r('post_processing_mask', post_processing_mask*255, True)     
-        
-        post_processed_mask = raw_prediction * post_processing_mask
-        print(f"post_processed mask {np.unique(post_processing_mask, return_counts=True)}")
-        imshow_r('post_processed', post_processed_mask*255, True)
-        cv2.imwrite(mask_out_fname, post_processed_mask)
-
-        if save_as_tiff:
-            convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
 
     #remove the output directory
     assert(os.path.isdir(temp_out_dir))
@@ -313,11 +318,20 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
     
     for idx, row in inputs.iterrows():
         in_file_name = row['inp_fname']
-        print(f'Processing {in_file_name} : {idx} file out of {num_files}...')
+        mask_name = row['mask_fname']
+        print(f'Processing {mask_name} : {idx} file out of {num_files}...')
         input_file = os.path.join(input_dir, in_file_name)
 
         # to avoid splitting the same input file into tiles for each label
         if in_file_name != prev_in_fname:
+            if not os.path.isdir(temp_inp_dir):
+                os.mkdir(temp_inp_dir)
+            else:
+                #delete the directory to delete all the files under it
+                # recreate the folder for new inputs
+                shutil.rmtree(temp_inp_dir)
+                os.mkdir(temp_inp_dir)
+
             in_tiles = img2tiles.split_image_into_tiles(input_file, temp_inp_dir, tile_size)
             prev_in_fname = in_file_name
             
@@ -336,14 +350,19 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
         label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, temp_inp_dir, tile_size)
 
         if legend_type == "poly":
+            continue
             infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
                 legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
         else:
             if legend_type == "pt":
+                continue
                 infer_points(input_file, points, output_file, save_as_tiff)
             else:
                 assert(legend_type == "line")
-                infer_lines(input_file, points, output_file, save_as_tiff)
+                # infer_lines(input_file, points, output_file, save_as_tiff)
+                print(f'input_file = {input_file}')
+                infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
+                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
         # validation_info.append([in_file_name, img_ht, img_wd, legend_type, label_fname])
 
 
@@ -391,6 +410,7 @@ def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as
         except:
             print(f"error in opening {input_file}")
             print(f'yo yo yo')
+            exit(0)
             return None 
         img_wd = img.width 
         img_ht = img.height
