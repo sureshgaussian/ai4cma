@@ -54,7 +54,6 @@ USE_POST_PROCESSING = True
 
 USE_AUGMENTATIONS = True
 
-USE_MEDIAN_COLOR = True
 EXP_NAME = 'median_rgb_deeplabv3_pt'
 
 EXP_NAME = f"{EXP_NAME}_{NUM_SAMPLES if NUM_SAMPLES else 'all'}"

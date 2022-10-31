@@ -37,7 +37,6 @@ def get_loaders(
     num_workers=4,
     pin_memory=True,
     num_samples = None,
-    use_median_color = False,
     persistent_workers = False
 ):
     train_ds = CMADataset(
@@ -46,7 +45,6 @@ def get_loaders(
         mask_dir=train_mask_dir,
         input_desc=train_desc,
         num_samples=num_samples,
-        use_median_color=use_median_color,
         do_aug=True
     )
     train_loader = DataLoader(
@@ -67,7 +65,6 @@ def get_loaders(
         mask_dir=train_mask_dir,
         input_desc=train_desc,
         num_samples=5,
-        use_median_color=use_median_color,
         do_aug=True
     )
     train_loader_mini = DataLoader(
@@ -86,7 +83,6 @@ def get_loaders(
         mask_dir=val_mask_dir,
         input_desc=val_desc,
         num_samples=5,
-        use_median_color=use_median_color
     )
     val_loader = DataLoader(
         val_ds,
@@ -184,6 +180,7 @@ def draw_contours(img_batch, pred_batch, target_batch):
         cv2.imwrite(tm_save_path, image)
         image = cv2.imread(tm_save_path)
 
+
         legend = np.moveaxis(image[3:,:,:], 0, -1)
 
         pred_contours = cv2.findContours(pred[0], cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
@@ -196,6 +193,7 @@ def draw_contours(img_batch, pred_batch, target_batch):
         image /= 255.0
         overlays.append(image)
 
+    os.remove(tm_save_path)
     overlays = np.array(overlays)
     im_merged = merge_images(overlays, [2,8])
 

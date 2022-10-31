@@ -19,14 +19,13 @@ from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
-    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'pt', use_median_color = False, do_aug = False) -> None:
+    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'pt', do_aug = False) -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir
         self.sped_dir = label_dir.replace('legends', 'sped_legends')
         self.mask_dir = mask_dir
         self.input_desc = input_desc
-        self.use_median_color = use_median_color
         self.legend_type = legend_type
         self.do_aug = do_aug
         self.debug = True
@@ -37,7 +36,6 @@ class CMADataset(Dataset):
         input_df = input_df[input_df['tile_legend'].str.contains(legend_type)]
 
         if legend_type == 'poly':
-            if self.use_median_color:
                 self.load_legend_median_values()            
                 # Discard invalid legends (legends with zero area). This also leaves us with only poly
                 input_df['stripped'] = input_df['tile_legend'].apply(lambda x : x.split('.')[0])
@@ -137,20 +135,17 @@ class CMADataset(Dataset):
 
 
 class CMAInferenceDataset(Dataset):
-    def __init__(self, image_dir, label_dir, input_desc, num_samples, use_median_color = False, legend_type="line") -> None:
+    def __init__(self, image_dir, label_dir, input_desc, num_samples, legend_type="line") -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir        
         self.input_desc = input_desc
-        self.use_median_color = use_median_color
         self.debug = False
         self.legend_type = legend_type
         
         input_df = pd.read_csv(self.input_desc)
 
-
         if legend_type == 'poly':
-            if self.use_median_color:
                 self.load_legend_median_values()
                 # print("length of input_df: ", len(input_df))
                 input_df['stripped'] = input_df['label_pattern_fname'].apply(lambda x : x.split('.')[0])
@@ -161,8 +156,6 @@ class CMAInferenceDataset(Dataset):
                 self.input_df = input_df
                 print("length of self.input_df: ", len(self.input_df))
                 assert(len(self.input_df) > 0)
-            else:
-                self.input_df = pd.read_csv(self.input_desc)
 
         if num_samples:
             sample_org_files = self.input_df['inp_file_name'].unique()[:num_samples]
@@ -223,7 +216,7 @@ class CMAInferenceDataset(Dataset):
 
 
 def test_cmadataset():
-    ds = CMADataset(IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC, num_samples = 2, use_median_color = True)
+    ds = CMADataset(IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC, num_samples = 2)
     for i in random.sample(range(100), 50):
         (x,y) = ds[i]
         print(x.shape, y.shape)
@@ -248,7 +241,7 @@ def test_cma_inference_dataset():
     input_dir = "../data/short_test/tiled_inp"
     label_dir = "../data/short_test/tiled_inp"
     validation_desc = "predict.csv"
-    ds = CMAInferenceDataset(input_dir, label_dir, validation_desc, num_samples = None, use_median_color = True)
+    ds = CMAInferenceDataset(input_dir, label_dir, validation_desc, num_samples = None)
     BATCH_SIZE = 16
     NUM_EPOCHS = 10
     NUM_WORKERS = 2

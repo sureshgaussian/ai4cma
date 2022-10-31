@@ -120,7 +120,6 @@ def main(args):
         NUM_WORKERS,
         PIN_MEMORY,
         NUM_SAMPLES,
-        USE_MEDIAN_COLOR
     )
 
     print(f'Got the loaders')
@@ -177,7 +176,6 @@ def test_save_predictions():
         NUM_WORKERS,
         PIN_MEMORY,
         NUM_SAMPLES,
-        USE_MEDIAN_COLOR,
         PERSISTANT_WORKERS
     )
 

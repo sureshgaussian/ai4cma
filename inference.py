@@ -59,7 +59,7 @@ def setup_inference(model_path):
 def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
     inp_csv = pd.read_csv(csv_file)
     cma_inference_dataset = dataset.CMAInferenceDataset(tiled_input_dir, 
-                                tiled_input_dir, csv_file, None, USE_MEDIAN_COLOR)
+                                tiled_input_dir, csv_file, None)
 
     if not len(cma_inference_dataset):
         print(f'Length of input to inference is zero..')
