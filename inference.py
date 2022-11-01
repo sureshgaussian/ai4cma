@@ -194,25 +194,6 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
         # imshow_r('post_processed', post_processed_mask*255, True)
         cv2.imwrite(mask_out_fname, post_processed_mask)
 
-
-    # if save_as_tiff:
-    #     convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
-    #     print(f"raw_prediction {np.unique(raw_prediction, return_counts=True)}")
-    #     print(f"raw_prediction : {raw_prediction.shape}")
-    #     # imshow_r('raw_prediction', raw_prediction*255, True)
-
-    #     json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
-    #     data_dir = 'validation' if args.stage == 'validation' else 'training'
-    #     legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
-    #     post_processing_mask = discard_preds_outside_map(legend_json_path, debug=False)
-    #     print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
-    #     # imshow_r('post_processing_mask', post_processing_mask*255, True)     
-        
-    #     post_processed_mask = raw_prediction * post_processing_mask
-    #     print(f"post_processed mask {np.unique(post_processing_mask, return_counts=True)}")
-    #     # imshow_r('post_processed', post_processed_mask*255, True)
-    #     cv2.imwrite(mask_out_fname, post_processed_mask)
-
     if save_as_tiff:
         convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
 
@@ -305,6 +286,8 @@ def infer_lines(input_file, points,output_file, save_as_tiff=True ):
 def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True, model_path=CHEKPOINT_PATH):
 
     model, device = setup_inference(model_path=model_path)
+
+    #Add two seperate models based on legend
 
     prev_in_fname = "XSASDASDFNAJS"
     inputs = pd.read_csv(descr_csv_file)
