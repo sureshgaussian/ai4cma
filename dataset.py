@@ -19,7 +19,7 @@ from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
-    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'pt', do_aug = False) -> None:
+    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'line', do_aug = False) -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir
@@ -37,7 +37,7 @@ class CMADataset(Dataset):
 
         if legend_type == 'poly':
                 self.load_legend_median_values()            
-                # Discard invalid legends (legends with zero area). This also leaves us with only poly
+                # Discard invalid legends (legends with zero area)
                 input_df['stripped'] = input_df['tile_legend'].apply(lambda x : x.split('.')[0])
                 input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
                 input_df.drop(columns=['stripped'], inplace=True)
@@ -90,31 +90,28 @@ class CMADataset(Dataset):
         # Perform the augmentations
         # TODO : The augmentation block to be replaced with torch compositions
         if self.debug:
-            imshow_r('Original Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+            imshow_r(os.path.basename(mask_path), [image, label, to_rgb(label_mask)], True)
 
         if self.do_aug and random.random() > 0.5:
             image = TF.hflip(image)
             label_mask = TF.hflip(label_mask)
 
             if self.debug:
-                imshow_r('H flipped Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+                imshow_r(f'H flipped {os.path.basename(mask_path)}', [image, label, to_rgb(label_mask)], True)
         
         if self.do_aug and random.random() > 0.5:
             image = TF.vflip(image)
             label_mask = TF.vflip(label_mask)
 
             if self.debug:
-                imshow_r('v flipped Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+                imshow_r(f'v flipped {os.path.basename(mask_path)}', [image, label, to_rgb(label_mask)], True)
 
         if self.do_aug and random.random() > 0.5:
             image = PIL.ImageOps.invert(image)
             label = PIL.ImageOps.invert(label)
 
             if self.debug:
-                imshow_r('Inverted Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
-
-        if self.debug:
-            imshow_r('Image, Label, Mask', [image, label, to_rgb(label_mask)], True)
+                imshow_r(f'Inverted {os.path.basename(mask_path)}', [image, label, to_rgb(label_mask)], True)
 
         # Convert to tensor finally
         image = TF.to_tensor(image)

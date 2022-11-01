@@ -163,7 +163,7 @@ def test_save_predictions():
     if torch.cuda.is_available():
         model.cuda()
     load_checkpoint(CHEKPOINT_PATH, model)
-    train_loader, test_loader = get_loaders(
+    _, test_loader, _ = get_loaders(
         TRAIN_IMG_DIR,
         TRAIN_LABEL_DIR,
         TRAIN_MASK_DIR,
@@ -182,7 +182,7 @@ def test_save_predictions():
     check_accuracy(test_loader, model, device=DEVICE, num_batches=100)
     
     save_predictions_as_imgs(
-            train_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
+            test_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
         )
 
 
