@@ -15,7 +15,7 @@ import torchvision.transforms.functional as TF
 import PIL.ImageOps
 
 from utils_show import dilate_mask
-from utils_show import imshow_r, to_rgb
+from utils_show import imshow_r, to_bgr
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
@@ -28,7 +28,7 @@ class CMADataset(Dataset):
         self.input_desc = input_desc
         self.legend_type = legend_type
         self.do_aug = do_aug
-        self.debug = True
+        self.debug = False
        
         input_df = pd.read_csv(self.input_desc)
 
@@ -90,28 +90,28 @@ class CMADataset(Dataset):
         # Perform the augmentations
         # TODO : The augmentation block to be replaced with torch compositions
         if self.debug:
-            imshow_r(os.path.basename(mask_path), [image, label, to_rgb(label_mask)], True)
+            imshow_r(os.path.basename(mask_path), [image, label, to_bgr(label_mask)], True)
 
         if self.do_aug and random.random() > 0.5:
             image = TF.hflip(image)
             label_mask = TF.hflip(label_mask)
 
             if self.debug:
-                imshow_r(f'H flipped {os.path.basename(mask_path)}', [image, label, to_rgb(label_mask)], True)
+                imshow_r(f'H flipped {os.path.basename(mask_path)}', [image, label, to_bgr(label_mask)], True)
         
         if self.do_aug and random.random() > 0.5:
             image = TF.vflip(image)
             label_mask = TF.vflip(label_mask)
 
             if self.debug:
-                imshow_r(f'v flipped {os.path.basename(mask_path)}', [image, label, to_rgb(label_mask)], True)
+                imshow_r(f'v flipped {os.path.basename(mask_path)}', [image, label, to_bgr(label_mask)], True)
 
         if self.do_aug and random.random() > 0.5:
             image = PIL.ImageOps.invert(image)
             label = PIL.ImageOps.invert(label)
 
             if self.debug:
-                imshow_r(f'Inverted {os.path.basename(mask_path)}', [image, label, to_rgb(label_mask)], True)
+                imshow_r(f'Inverted {os.path.basename(mask_path)}', [image, label, to_bgr(label_mask)], True)
 
         # Convert to tensor finally
         image = TF.to_tensor(image)

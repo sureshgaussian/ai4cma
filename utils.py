@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 import json
 from glob import glob
-from utils_show import imshow_r, to_rgb
+from utils_show import imshow_r, to_bgr
 from PIL import Image
 
 def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):

@@ -11,6 +11,8 @@ import numpy as np
 import json
 import pandas as pd
 Image.MAX_IMAGE_PIXELS = None
+from preprocess import preprocess_legend_coordinates, preprocess_legend
+from utils_show import imshow_r
 
 
 def split_image_into_tiles(input_file, output_dir, tile_size=256):
@@ -256,7 +258,7 @@ def test_stitch_images():
 
 def scale_pack_legend(input_tif_file, legend_bb, output_sp_legened_file, tile_size=TILE_SIZE):
     try:
-        img = Image.open( input_tif_file)
+        img = Image.open(input_tif_file)
     except:
         print(f"error in opening {input_tif_file}")
         print(f'yo yo yo')
@@ -266,17 +268,48 @@ def scale_pack_legend(input_tif_file, legend_bb, output_sp_legened_file, tile_si
     new_img = Image.new('RGB', (tile_size, tile_size))
 
     # read the label file
+    legend_bb = preprocess_legend_coordinates(legend_bb)
     bb = bounding_box(legend_bb)
     label_img = img.crop(bb)
+    # label_img = preprocess_legend(label_img)    
+    # imshow_r('label', label_img, True)
     # tile_siz/4 rescaled, and rotated image
     assert(tile_size % 16 == 0)
+
     scaled_by_4 = label_img.resize((tile_size//2, tile_size//2))
     scaled_by_4_90d = scaled_by_4.rotate(90)
     scaled_by_4_270d = scaled_by_4.rotate(270)
+
+    new_img.paste(scaled_by_4, (0,0))
+    new_img.paste(scaled_by_4_90d, (tile_size//2,0))
+    new_img.paste(scaled_by_4_270d, (0,tile_size//2))
+
     scaled_by_8 = label_img.resize((tile_size//4, tile_size//4))
     scaled_by_8_90d = scaled_by_8.rotate(90)
-    scaled_by_8_45d = scaled_by_8.rotate(45, fillcolor=(255,255,255))
-    scaled_by_8_315d = scaled_by_8.rotate(315, fillcolor=(255,255,255))
+    scaled_by_8_45d = scaled_by_8.rotate(180, fillcolor=(255,255,255))
+    scaled_by_8_315d = scaled_by_8.rotate(270, fillcolor=(255,255,255))
+
+    # scaled_by_8_22hd = label_img.resize((tile_size//4, tile_size//4))
+    # scaled_by_8_90d = scaled_by_8.rotate(90)
+    # scaled_by_8_45d = scaled_by_8.rotate(45, fillcolor=(255,255,255))
+    # scaled_by_8_315d = scaled_by_8.rotate(315, fillcolor=(255,255,255))
+
+
+    new_img.paste(scaled_by_8, (tile_size//2, tile_size//2))
+    new_img.paste(scaled_by_8_90d, (tile_size//2+tile_size//4, tile_size//2))
+    new_img.paste(scaled_by_8_45d, (tile_size//2+tile_size//4, tile_size//2+tile_size//4))
+    new_img.paste(scaled_by_8_315d, (tile_size//2, tile_size//2+tile_size//4))
+
+    temp_img = new_img.crop((tile_size//2, tile_size//2, tile_size, tile_size))
+
+    temp_img_tl = temp_img.copy().rotate(22.5, fillcolor=(255,255,255))
+    new_img.paste(temp_img_tl, (0, 0))
+
+    temp_img_tr = temp_img.copy().rotate(22.5*2, fillcolor=(255,255,255))
+    new_img.paste(temp_img_tr, (tile_size//2, 0))
+
+    temp_img_bl = temp_img.copy().rotate(22.5*3, fillcolor=(255,255,255))
+    new_img.paste(temp_img_bl, (0, tile_size//2))
 
     # scaled_by_16 = label_img.resize((tile_size//8, tile_size//8))
     # scaled_by_16_90d = scaled_by_16.rotate(90)
@@ -286,14 +319,6 @@ def scale_pack_legend(input_tif_file, legend_bb, output_sp_legened_file, tile_si
     # scaled_by_16_247d = scaled_by_16.rotate(247)
     # scaled_by_16_67d = scaled_by_16.rotate(67)
     # scaled_by_16_203d = scaled_by_16.rotate(203)
-    new_img.paste(scaled_by_4, (0,0))
-    new_img.paste(scaled_by_4_90d, (tile_size//2,0))
-    new_img.paste(scaled_by_4_270d, (0,tile_size//2))
-
-    new_img.paste(scaled_by_8, (tile_size//2, tile_size//2))
-    new_img.paste(scaled_by_8_90d, (tile_size//2+tile_size//4, tile_size//2))
-    new_img.paste(scaled_by_8_45d, (tile_size//2+tile_size//4, tile_size//2+tile_size//4))
-    new_img.paste(scaled_by_8_315d, (tile_size//2, tile_size//2+tile_size//4))
 
     # new_img.paste(scaled_by_16, (tile_size//2, tile_size//2))
     # new_img.paste(scaled_by_16_90d, (tile_size//2, tile_size//8+tile_size//2))
@@ -303,10 +328,12 @@ def scale_pack_legend(input_tif_file, legend_bb, output_sp_legened_file, tile_si
     # new_img.paste(scaled_by_16_22d, (tile_size//2+tile_size//8, tile_size//8+tile_size//2))
     # new_img.paste(scaled_by_16_247d, (tile_size//2+tile_size//8, tile_size//4+tile_size//2))
     # new_img.paste(scaled_by_16_203d, (tile_size//2+tile_size//8, tile_size//2+3*tile_size//8))
+
     # temp_img = new_img.crop((tile_size//2, tile_size//2, tile_size//2+tile_size//4, tile_size//2+tile_size//4))
     # temp_img = temp_img.rotate(15)
     # new_img.paste(temp_img, (tile_size//2+tile_size//4, tile_size//2))
-
+    # temp_img = temp_img.rotate(15)
+    # new_img.paste(temp_img, (tile_size//2+tile_size//4, tile_size//2+tile_size//4))
 
     new_img.save(output_sp_legened_file)
     # return os.path.basename(output_sp_legened_file)
@@ -320,6 +347,9 @@ def main(args):
     csv_df = pd.read_csv(inp_csv)
     total_files = len(csv_df)
     for idx, row in csv_df.iterrows():
+        print(row)
+        if 'poly' in row['label']:
+            continue
         if idx % 10 == 0:
             print(f'finished processing {idx} out of {total_files}...')
         # output_legend_file = os.path.join(output_dir, row['mask_fname']).replace('.tif', '.png')
@@ -327,6 +357,7 @@ def main(args):
         input_tif_file = os.path.join(input_dir, row['inp_fname'])
         bb = ast.literal_eval(row['points'])
         scale_pack_legend(input_tif_file, bb, output_legend_file, tile_size=tile_size)
+        # break
 
 def run_in_map():
     in_df = pd.read_csv("../tiled_inputs/challenge_testing/info/balanced_tiles.csv")
