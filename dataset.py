@@ -151,8 +151,7 @@ class CMAInferenceDataset(Dataset):
                 # print("length of input_df: ", len(input_df))
                 input_df = input_df.reset_index(drop=True)
                 self.input_df = input_df
-                print("length of self.input_df: ", len(self.input_df))
-                assert(len(self.input_df) > 0)
+                
 
         if num_samples:
             sample_org_files = self.input_df['inp_file_name'].unique()[:num_samples]
@@ -160,6 +159,9 @@ class CMAInferenceDataset(Dataset):
             input_df = input_df.reset_index(drop=True)
         
         self.input_df = input_df
+
+        print("length of self.input_df: ", len(self.input_df))
+        assert(len(self.input_df) > 0)
 
         #print('Non empty label distribution : ', self.input_df['empty_tile'].value_counts())
 
@@ -177,12 +179,13 @@ class CMAInferenceDataset(Dataset):
         sped_label_path = label_path.replace('legends', 'sped_legends')
         mask_tile_name = reqd_row["mask_tile_name"]
 
-        image = np.array(Image.open(img_path).convert("RGB"))
+        image = Image.open(img_path).convert("RGB")
         # image = image/255.0
 
         # Get the label that is to be concatenated with input
         if self.legend_type == 'poly':
-            rgb = self.legend_data[reqd_row["tile_legend"].split('.')[0]]
+            rgb = self.legend_data[reqd_row["label_pattern_fname"].split('.')[0]]
+            # print("rgb=", rgb, "image size = ", image.size)
             label = Image.new("RGB", image.size, tuple(rgb))
         else:
             if os.path.exists(sped_label_path):

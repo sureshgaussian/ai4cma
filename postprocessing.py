@@ -64,7 +64,7 @@ def discard_preds_outside_map(legend_json_path, debug = False):
     aux_white = np.ones((img_h, img_w), dtype='uint8')
     while len(remaining_points):
 
-        print(f"num remaining points : {len(remaining_points)}")
+        # print(f"num remaining points : {len(remaining_points)}")
         
         # After preprocessing, legend is ordered as top-left, bottom-right corners. 
         legend_x_min = min(remaining_points, key=lambda point: point[0][0])
@@ -110,8 +110,8 @@ def discard_preds_outside_map(legend_json_path, debug = False):
         # cv2.destroyAllWindows()
 
     # Rescale the image intensity
-    print(f"sem_without_legend : {sem_without_legend.shape}")
-    print(f"sem_without_legend : {np.unique(sem_without_legend, return_counts=True)}")
+    # print(f"sem_without_legend : {sem_without_legend.shape}")
+    # print(f"sem_without_legend : {np.unique(sem_without_legend, return_counts=True)}")
     try:
         sem_without_legend = to_grayscale(sem_without_legend)/255.0
     except:
