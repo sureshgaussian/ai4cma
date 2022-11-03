@@ -233,24 +233,28 @@ def preprocess_points(points):
 def draw_contours_big(img_path, pred_path, target_path):
     
     img = cv2.imread(img_path, 0)
-    img = to_rgb(img)
-    pred = cv2.imread(pred_path, 0)
-    target = cv2.imread(target_path, 0)
+    img = to_bgr(img)
 
+    if target_path:
+        target = cv2.imread(target_path, 0)
+        target_contours = cv2.findContours(target, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
+        cv2.drawContours(img, target_contours, -1, (0, 255, 0), 40)
+
+    pred = cv2.imread(pred_path, 0)
     pred_contours = cv2.findContours(pred, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
     cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 20)
 
-    target_contours = cv2.findContours(target, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
-    cv2.drawContours(img, target_contours, -1, (0, 255, 0), 20)
-
-    imshow_r('overlay', img, True)
+    imshow_r(os.path.basename(pred_path), img, True)
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
 
-    step = 'testing'
+    step = 'validation'
     dir = os.path.join(RESULTS_DIR, step)
     for pred_name in os.listdir(dir):
         img_path = os.path.join(CHALLENGE_INP_DIR, 'training', '_'.join(pred_name.split('_')[:2]) + '.tif')
+        if not os.path.exists(img_path):
+            continue
         target_path = os.path.join(CHALLENGE_INP_DIR, 'training', pred_name)
         pred_path = os.path.join(dir, pred_name)
 
