@@ -23,7 +23,12 @@ def split_image_into_tiles(input_file, output_dir, tile_size=256):
     tx =0
     ty=0
     try:
-        img = Image.open( input_file)
+        img = Image.open(input_file)
+        if img.mode != 'RGB':
+            scaler = 1 if img.mode == 'L' else 255
+            img_np = np.array(img, dtype='uint8')*scaler
+            img_rgb = cv2.cvtColor(img_np, cv2.COLOR_GRAY2BGR)
+            img = Image.fromarray(img_rgb, 'RGB')
     except:
         print(f"error in opening {input_file}")
         print(f'yo yo yo')
@@ -257,6 +262,11 @@ def test_stitch_images():
 def scale_pack_legend(input_tif_file, legend_bb, output_sp_legened_file, tile_size=TILE_SIZE):
     try:
         img = Image.open( input_tif_file)
+        if img.mode != 'RGB':
+            scaler = 1 if img.mode == 'L' else 255
+            img_np = np.array(img, dtype='uint8')*scaler
+            img_rgb = cv2.cvtColor(img_np, cv2.COLOR_GRAY2BGR)
+            img = Image.fromarray(img_rgb, 'RGB')
     except:
         print(f"error in opening {input_tif_file}")
         print(f'yo yo yo')

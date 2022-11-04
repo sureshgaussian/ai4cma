@@ -175,12 +175,10 @@ class CMAInferenceDataset(Dataset):
         assert (index < len(self.input_df))
         reqd_row = self.input_df.loc[index]
         img_path = os.path.join(self.image_dir,reqd_row["in_tile"])
-        label_path = os.path.join(self.label_dir,reqd_row["label_pattern_fname"])
-        sped_label_path = label_path.replace('legends', 'sped_legends')
+        label_path = os.path.join(self.image_dir,reqd_row["label_pattern_fname"])
         mask_tile_name = reqd_row["mask_tile_name"]
 
         image = Image.open(img_path).convert("RGB")
-        # image = image/255.0
 
         # Get the label that is to be concatenated with input
         if self.legend_type == 'poly':
@@ -190,13 +188,11 @@ class CMAInferenceDataset(Dataset):
                 rgb = 3*rgb
             label = Image.new("RGB", image.size, tuple(rgb))
         else:
-            if os.path.exists(sped_label_path):
-                label = Image.open(sped_label_path).convert("RGB")
-            else: # TODO : this needs to go away. We are using till suresh creates sped label folder for test
+            if os.path.exists(label_path):
                 label = Image.open(label_path).convert("RGB")
 
         if self.debug:
-            imshow_r('Image, Label', [image, label], True)
+            imshow_r(f'{index} Image, Label', [image, label], True)
 
         # how come no normalization?
         # print(f'max of image is {np.max(np.array(image))}')
