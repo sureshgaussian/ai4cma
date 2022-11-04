@@ -186,6 +186,8 @@ class CMAInferenceDataset(Dataset):
         if self.legend_type == 'poly':
             rgb = self.legend_data[reqd_row["label_pattern_fname"].split('.')[0]]
             # print("rgb=", rgb, "image size = ", image.size)
+            if len(rgb) == 1:
+                rgb = 3*rgb
             label = Image.new("RGB", image.size, tuple(rgb))
         else:
             if os.path.exists(sped_label_path):

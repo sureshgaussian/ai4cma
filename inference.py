@@ -1,3 +1,4 @@
+from datetime import datetime
 import ast 
 import argparse
 import csv
@@ -37,10 +38,22 @@ import logging
 def setup_inference(model_path):
 
     if MODEL_NAME == 'unet':
-        model = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+        model_line = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+        # model_line = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+        # model_poly = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
+        # model_point = UNET(in_channels=IN_CHANNELS, out_channels=1).to(DEVICE)
     else:
         model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
         model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
+        
+        # model_point = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
+        # model_point.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
+
+        # model_poly = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
+        # model_poly.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
+
+        # model_line = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
+        # model_line.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
 
     if isinstance(model, UNET):
         print(f'Using UNET model in inference')
@@ -49,17 +62,41 @@ def setup_inference(model_path):
 
     if torch.cuda.is_available():
         model.cuda()
+        # model_point.cuda()
+        # model_line.cuda()
+        # model_poly.cuda()
+        
     load_checkpoint(model_path, model)
 
+    # load_checkpoint(model_path['model_line'], model_line)
+    # load_checkpoint(model_path['model_poly'], model_poly)
+    # load_checkpoint(model_path['model_point'], model_point)
+
     #load_checkpoint(torch.load("/home/ravi/ai4cma/temp/my_checkpoint_median_rgb_all.pth.tar"), model)
+    
+    # model_line.eval()
+    # model_poly.eval()
+    # model_point.eval()
     model.eval()
+    
     device = DEVICE
+    # models = {
+    #                 "model_poly": model_poly,
+    #                 "model_line": model_line,
+    #                 "model_point": model_point,
+    #             }
+
     return model, device 
 
 def infer_one_mask(model, device, tiled_input_dir, csv_file, tiled_output_dir):
     inp_csv = pd.read_csv(csv_file)
+
+    # lets make sure that the legend_type in the csv file is same for all lines
+    legend_type = inp_csv['legend_type'].unique()
+    assert (len(legend_type) == 1)
+
     cma_inference_dataset = dataset.CMAInferenceDataset(tiled_input_dir, 
-                                tiled_input_dir, csv_file, None)
+                                tiled_input_dir, csv_file, None, legend_type=legend_type)
 
     if not len(cma_inference_dataset):
         print(f'Length of input to inference is zero..')
@@ -120,7 +157,7 @@ def convert_mask_to_raster_tif(input_file, output_file):
     assert(height == image.height)
     image = np.array(image)
 
-    image = image*250
+    image = image
 
     if len(np.unique(image)) > 2:
         print(f'{input_file} has values >2 ')
@@ -163,17 +200,27 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
     inp_df.to_csv("predict.csv", index=False)
 
     # ship to inference on one image
+    pixels = inp_df['height'][0] * inp_df['width'][0]
+    then = datetime.now()
+
     success = infer_one_mask(model, device, temp_inp_dir, "predict.csv", temp_out_dir)
+    now = datetime.now()
 
     if not success:
         print(f'Something is off')
         return
+    else:
+        print(f' infer_one_mask took {now-then} to process {pixels} pixels')
 
     # get the original image from tiles
     label_fname = os.path.splitext(label_pattern_fname)[0]
     mask_out_fname = os.path.join(results_dir, label_fname+".tif")
+    then = datetime.now()
     img2tiles.stitch_image_from_tiles(tile_size, label_fname, temp_out_dir, mask_out_fname, (img_wd, img_ht))
+    now = datetime.now()
+    print(f' stitching image took {now-then} to process {pixels} pixels')
 
+    then = datetime.now()
     if USE_POST_PROCESSING:
         # Postprocessing
         raw_prediction = cv2.imread(mask_out_fname, 0)
@@ -194,9 +241,14 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
         # imshow_r('post_processed', post_processed_mask*255, True)
         cv2.imwrite(mask_out_fname, post_processed_mask)
 
+    now = datetime.now()
+    print(f' post proc image took {now-then} to process {pixels} pixels')
+
+    then = datetime.now()
     if save_as_tiff:
         convert_mask_to_raster_tif(input_file, os.path.join(results_dir, mask_out_fname))
-
+    now = datetime.now()
+    print(f' convert mask to raster image took {now-then} to process {pixels} pixels')
     #remove the output directory
     assert(os.path.isdir(temp_out_dir))
     shutil.rmtree(temp_out_dir)
@@ -330,24 +382,28 @@ def infer_from_csv(descr_csv_file, input_dir, results_dir, temp_inp_dir, temp_ou
         label_fname = os.path.splitext(in_file_name)[0]+"_"+label+".tif"
         label_fname = os.path.basename(label_fname)
         output_file = os.path.join(results_dir, label_fname)
-        label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, temp_inp_dir, tile_size)
+        label_pattern_fname = row['mask_fname']
 
         if legend_type == "poly":
-            continue
-            infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
-                legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
+            # model = models['model_poly']
+            pass
         else:
             if legend_type == "pt":
-                continue
-                infer_points(input_file, points, output_file, save_as_tiff)
+                # model = models['model_point']
+                #label_pattern_fname = img2tiles.make_label_pattern(input_file, label, points, temp_inp_dir, tile_size)
+                output_legend_file = os.path.join(temp_inp_dir, label_pattern_fname)
+                img2tiles.scale_pack_legend(input_file, points, output_legend_file, tile_size)
+                
             else:
                 assert(legend_type == "line")
-                # infer_lines(input_file, points, output_file, save_as_tiff)
-                print(f'input_file = {input_file}')
-                infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
-                    legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
-        # validation_info.append([in_file_name, img_ht, img_wd, legend_type, label_fname])
+                # model = models['model_line']
+                output_legend_file = os.path.join(temp_inp_dir, label_pattern_fname)
+                img2tiles.scale_pack_legend(input_file, points, output_legend_file, tile_size)
+                
 
+        infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label, 
+                legend_type, img_ht, img_wd, save_as_tiff, model, device, temp_inp_dir, temp_out_dir, results_dir, tile_size)
+        
 
 def infer(input_dir, results_dir, temp_inp_dir, temp_out_dir, tile_size, save_as_tiff=True):
     # input_info_df = get_input_info(input_dir=input_dir)
@@ -485,13 +541,16 @@ def process_args(args):
     if args.stage == 'training':
         sub_dir = 'training'
         w_sub_dir = 'training'
+        csv_ext = "_files.csv"
     elif args.stage == 'testing':
         # training here is intentional
         sub_dir = 'training' 
         w_sub_dir = 'testing'
+        csv_ext = "_files.csv"
     elif args.stage == 'validation':
         sub_dir = 'validation'
         w_sub_dir = 'validation'
+        csv_ext = "_set.csv"
     else:
         print(f'unsupported stage for inference')
         return 
@@ -509,20 +568,41 @@ def process_args(args):
     
     tile_size = TILE_SIZE
     results_dir = os.path.join(RESULTS_DIR, w_sub_dir)
-    csv_file_name = args.dataset+"_"+args.stage+"_files.csv"
+    csv_file_name = args.dataset+"_"+args.stage+csv_ext
     csv_file = os.path.join(TILED_INP_DIR, INFO_DIR)
     csv_file = os.path.join(csv_file, csv_file_name)
     rem_csv_file = csv_file.replace(".csv", "_rem.csv") 
     build_remaining_csv_file(csv_file, results_dir, rem_csv_file)
 
-    model_path = args.model
+    model_poly = args.model_poly
+    model_line = args.model_line
+    model_point = args.model_point
+    model_path = {
+                    "model_poly": model_poly,
+                    "model_line": model_line,
+                    "model_point": model_point,
+                }
+    print(f'model_paths = {model_path}')
     print(f'Running inference with the following parameters')
     print(f'input_dir = {input_dir}\ntiled_inp_dir = {vinp_dir}\ntiled_out_dir = {vout_dir} \nresults_dir = {results_dir} \ntile_size = {tile_size} \ncsv_file = {csv_file} \nrem_csv_file = {rem_csv_file}')
 
-    # prepare_for_submission(input_dir, vinp_dir, vout_dir, results_dir, tile_size)
-    # csv_file = "../tiled_inputs/info/remaining_validation_files.csv"
-    # csv_file = "../tiled_inputs/info/challenge_validation_set.csv"
-    prepare_for_submission_from_csv(rem_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size, model_path=model_path)
+    in_df = pd.read_csv(rem_csv_file)
+    in_poly_df = in_df[in_df['legend_type']=='poly']
+    in_line_df = in_df[in_df['legend_type']=='line']
+    in_point_df = in_df[in_df['legend_type']=='point']
+    rem_poly_csv_file = rem_csv_file.replace('.csv', '_poly.csv')
+    rem_point_csv_file = rem_csv_file.replace('.csv', '_point.csv')
+    rem_line_csv_file = rem_csv_file.replace('.csv', '_line.csv')
+
+    in_point_df.to_csv(rem_point_csv_file, index=False)
+    in_poly_df.to_csv(rem_poly_csv_file, index=False)
+    in_line_df.to_csv(rem_line_csv_file, index=False)
+
+    prepare_for_submission_from_csv(rem_poly_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size, model_path=model_poly)
+
+    prepare_for_submission_from_csv(rem_line_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size, model_path=model_line)
+
+    prepare_for_submission_from_csv(rem_point_csv_file, input_dir, vinp_dir, vout_dir, results_dir, tile_size, model_path=model_point)
 
     return 
 
@@ -533,7 +613,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Inference parser')
     parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
     parser.add_argument('-s', '--stage', default='validation', help='which stage [ training, testing, validation]')
-    parser.add_argument('-m', '--model', default=CHEKPOINT_PATH, help='full path to the model')
+    parser.add_argument('-mp', '--model_poly', default=CHEKPOINT_PATH, help='full path to the model for poly')
+    parser.add_argument('-mt', '--model_point', default=CHEKPOINT_PATH, help='full path to the model for point')
+    parser.add_argument('-ml', '--model_line', default=CHEKPOINT_PATH, help='full path to the model for line')
 
     args = parser.parse_args()
     # prepare_for_submission()
