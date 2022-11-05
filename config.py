@@ -33,6 +33,11 @@ WORKING_DIR = "/home/suresh/challenges/ai4cma/working_dir"
 MODEL_NAME = "deeplabv3"
 INF_MODEL_PATH = "submission_v1_model.pth.tar"
 
+
+# Downscaled data
+DOWNSCALED_DATA_PATH = os.path.join(ROOT_PATH, 'downscaled_data')
+
+
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
