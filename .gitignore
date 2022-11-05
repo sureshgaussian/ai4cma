@@ -2,3 +2,10 @@ __pycache__
 inp
 temp
 runs/
+*.tif
+*.csv
+*.png
+*.zip
+*.tar
+*.log
+temp.png
