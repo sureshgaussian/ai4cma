@@ -10,7 +10,7 @@ def pil_to_opencv(img):
         return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
     return img
 
-def imshow_r(wdw, img_src, stop=False, remote = False):
+def imshow_r(wdw, img_src, stop=False):
     img = img_src.copy()
     ''' Parsing cv2.imshow() '''
     if isinstance(img, list):
