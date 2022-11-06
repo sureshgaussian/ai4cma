@@ -17,6 +17,19 @@ import PIL.ImageOps
 from utils_show import dilate_mask
 from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
+class EncodedDataset(Dataset):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def __len__(self):
+        return 100
+
+    def __getitem__(self, index):
+        
+        rand_feature_map = torch.rand(2048, 1, 1)
+        mask = np.random.randint(2, size=(256, 256))
+
+        return rand_feature_map, mask
 
 class CMADataset(Dataset):
     def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'poly', do_aug = False) -> None:

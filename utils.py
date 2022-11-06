@@ -1,7 +1,7 @@
 from cv2 import dilate
 from unet import UNET
 import torch
-from dataset import CMADataset
+from dataset import CMADataset, EncodedDataset
 from torch.utils.data import DataLoader
 from config import *
 import numpy as np
@@ -23,6 +23,12 @@ def load_checkpoint(checkpoint_path, model):
     print(f"=> Loading checkpoint from {checkpoint_path}")
     checkpoint = torch.load(checkpoint_path)    
     model.load_state_dict(checkpoint["state_dict"])
+
+def get_encoded_loader():
+    dataset = EncodedDataset()
+    loader = DataLoader(dataset, 4)
+    return loader
+
 
 def get_loaders(
     train_img_dir,
@@ -233,9 +239,12 @@ def preprocess_points(points):
 def draw_contours_big(img_path, pred_path, target_path):
     
     img = cv2.imread(img_path, 0)
+    print(img.shape)
     img = to_rgb(img)
     pred = cv2.imread(pred_path, 0)
     target = cv2.imread(target_path, 0)
+
+    print(img.shape, pred.shape, target.shape)
 
     pred_contours = cv2.findContours(pred, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
     cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 20)
@@ -250,6 +259,9 @@ if __name__ == '__main__':
     step = 'testing'
     dir = os.path.join(RESULTS_DIR, step)
     for pred_name in os.listdir(dir):
+        if 'AR_Murray' not in pred_name:
+            continue
+
         img_path = os.path.join(CHALLENGE_INP_DIR, 'training', '_'.join(pred_name.split('_')[:2]) + '.tif')
         target_path = os.path.join(CHALLENGE_INP_DIR, 'training', pred_name)
         pred_path = os.path.join(dir, pred_name)

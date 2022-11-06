@@ -9,6 +9,8 @@ import torch.optim as optim
 from unet import UNET
 from config import *
 from torchvision.models.segmentation import deeplabv3_resnet101
+from torchsummary import summary
+from datetime import datetime
 
 from utils import (
     load_checkpoint,
@@ -19,7 +21,8 @@ from utils import (
 )
 
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter()
+train_writer = SummaryWriter(os.path.join(LOG_DIR, "train"))
+test_writer = SummaryWriter(os.path.join(LOG_DIR, "val"))
 
 def train_fn(epoch_index, loader, test_loader, model, optimizer, loss_fn, scaler, train_loader_mini):
     # print(f'In train function')
@@ -53,22 +56,27 @@ def train_fn(epoch_index, loader, test_loader, model, optimizer, loss_fn, scaler
             running_loss = 0.
             
         # Write to tensorboard every 500th step
-        if i % 500 == 499:
+        # if i % 500 == 499:
 
             global_step_index = epoch_index*len(loader) + i
-            writer.add_scalar(f"train_loss", last_loss, global_step_index)
 
-            train_dice_avg, train_dice_std, train_dice_median = check_accuracy(train_loader_mini, model, device=DEVICE, num_batches='all')
-            writer.add_scalar(f"train_dice_avg", train_dice_avg, global_step_index)
-            writer.add_scalar(f"train_dice_std", train_dice_std, global_step_index)
-            writer.add_scalar(f"train_dice_median", train_dice_median, global_step_index)
+            train_dice_avg, train_dice_std, train_dice_median = check_accuracy(train_loader_mini, model, device=DEVICE, num_batches=10)
+            test_dice_avg, test_dice_std, test_dice_median = check_accuracy(test_loader, model, device=DEVICE, num_batches=10)
+
+            train_writer.add_scalar(f"dice_avg", train_dice_avg, global_step_index)
+            train_writer.add_scalar(f"dice_std", train_dice_std, global_step_index)
+            train_writer.add_scalar(f"dice_median", train_dice_median, global_step_index)
 
             test_dice_avg, test_dice_std, test_dice_median = check_accuracy(test_loader, model, device=DEVICE, num_batches='all')
-            writer.add_scalar(f"test_dice_avg", test_dice_avg, global_step_index)
-            writer.add_scalar(f"test_dice_std", test_dice_std, global_step_index)
-            writer.add_scalar(f"test_dice_median", test_dice_median, global_step_index)
+            test_writer.add_scalar(f"dice_avg", test_dice_avg, global_step_index)
+            test_writer.add_scalar(f"dice_std", test_dice_std, global_step_index)
+            test_writer.add_scalar(f"dice_median", test_dice_median, global_step_index)
 
-            writer.flush()
+            # writer.add_scalars("dice_avg", {'train': train_dice_avg, 'test': test_dice_avg}, global_step_index)
+            # writer.add_scalars("dice_std", {'train': train_dice_std, 'test': test_dice_std}, global_step_index)
+            # writer.add_scalars("dice_median", {'train': train_dice_median, 'test': test_dice_median}, global_step_index)
+            train_writer.flush()
+            test_writer.flush()
 
         # Save checkpoint every 2k step or at the last step of the epoch
         if i % 2000 == 1999 or i == len(loader) - 1:
@@ -101,6 +109,7 @@ def main(args):
         model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
         model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
 
+    
     if torch.cuda.is_available():
         model.cuda()
 
@@ -135,7 +144,6 @@ def main(args):
 
     for epoch_index in range(NUM_EPOCHS):
         last_loss = train_fn(epoch_index, train_loader, test_loader, model, optimizer, loss_fn, scaler, train_loader_mini)
-        writer.add_scalar("train_loss", last_loss, epoch_index)
 
         print(epoch_index, last_loss)
 

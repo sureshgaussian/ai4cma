@@ -23,7 +23,7 @@ def imshow_r(wdw, img_src, stop=False, remote = False):
         cv2.imwrite(os.path.join('debug_images', wdw + '.png'), img)
         return
 
-    cv2.imshow(wdw, imutils.resize(img, width=800))
+    cv2.imshow(wdw, imutils.resize(img, width=1800))
     
     if stop:
         cv2.waitKey()

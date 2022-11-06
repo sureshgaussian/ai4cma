@@ -45,16 +45,17 @@ IMAGE_HEIGHT = TILE_SIZE  # 1280 originally
 IMAGE_WIDTH = TILE_SIZE  # 1918 originally
 PIN_MEMORY = True
 PERSISTANT_WORKERS = False
-LOAD_MODEL = True
+LOAD_MODEL = False
 NUM_SAMPLES = None
 TRAIN_TEST_SPLIT_RATIO = 0.8
 EMPTY_TILES_RATIO=0.6
 IN_CHANNELS = 6
 USE_POST_PROCESSING = True
-
 USE_AUGMENTATIONS = True
 
-EXP_NAME = 'median_rgb_deeplabv3_poly'
+LOG_DIR = 'runs'
+
+EXP_NAME = 'median_rgb_deeplabv3_mini'
 
 EXP_NAME = f"{EXP_NAME}_{NUM_SAMPLES if NUM_SAMPLES else 'all'}"
 
