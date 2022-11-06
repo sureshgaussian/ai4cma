@@ -9,3 +9,4 @@ runs/
 *.tar
 *.log
 temp.png
+env.py

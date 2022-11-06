@@ -19,7 +19,7 @@ from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
-    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'line', do_aug = False) -> None:
+    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'poly', do_aug = False) -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir
@@ -28,7 +28,7 @@ class CMADataset(Dataset):
         self.input_desc = input_desc
         self.legend_type = legend_type
         self.do_aug = do_aug
-        self.debug = True
+        self.debug = False
        
         input_df = pd.read_csv(self.input_desc)
 
@@ -124,8 +124,8 @@ class CMADataset(Dataset):
         return input, label_mask
 
     def load_legend_median_values(self):
-        legend_median_data_path = '/home/ravi/cma_challenge/legends_median_data.json'
-        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/everything_legends_median_data.json')
+        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data.json')
+        # legend_median_data_path = os.path.join(ROOT_PATH, 'eda/everything_legends_median_data.json')
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
         self.legend_data = legend_data

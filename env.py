@@ -1,4 +1,4 @@
-SAVE_DEBUG_IMGS = True
+SAVE_DEBUG_IMGS = False
 
 import shutil
 import os
