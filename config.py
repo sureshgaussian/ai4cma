@@ -59,7 +59,7 @@ USE_POST_PROCESSING = True
 
 USE_AUGMENTATIONS = True
 
-LEGEND_TYPE = 'pt'
+LEGEND_TYPE = 'poly' # To filter the dataset while training. Doesn't impact the inference
 EXP_NAME = f'median_rgb_deeplabv3_{LEGEND_TYPE}'
 
 

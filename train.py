@@ -143,12 +143,12 @@ def main(args):
         # save checkpoint
         save_checkpoint(model, optimizer, checkpoint_path)       
 
-def test_save_predictions():
+def test_save_predictions(args):
     model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
     model.backbone.conv1 = nn.Conv2d(IN_CHANNELS, 64, 7, 2, 3, bias=False)
     if torch.cuda.is_available():
         model.cuda()
-    load_checkpoint(CHEKPOINT_PATH, model)
+    load_checkpoint(args.model_checkpoint_path, model)
     _, test_loader, _ = get_loaders(
         TRAIN_IMG_DIR,
         TRAIN_LABEL_DIR,
@@ -166,7 +166,7 @@ def test_save_predictions():
         PERSISTANT_WORKERS
     )
 
-    check_accuracy(test_loader, model, device=DEVICE, num_batches=100)
+    # check_accuracy(test_loader, model, device=DEVICE, num_batches=100)
     
     save_predictions_as_imgs(
             test_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
@@ -180,5 +180,5 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
     parser.add_argument('-m', '--model_checkpoint_path', default=CHEKPOINT_PATH, help='checkpoint path')
     args = parser.parse_args()
-    main(args)
-    # test_save_predictions()
+    # main(args)
+    test_save_predictions(args)
