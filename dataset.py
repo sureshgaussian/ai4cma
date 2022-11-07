@@ -19,7 +19,7 @@ from utils_show import imshow_r, to_rgb
 # from config import IMG_DIR, LABEL_DIR, MASK_DIR, TRAIN_DESC
 
 class CMADataset(Dataset):
-    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type = 'line', do_aug = False) -> None:
+    def __init__(self, image_dir, label_dir, mask_dir, input_desc, num_samples, legend_type, do_aug = False, transforms = None) -> None:
         super().__init__()
         self.image_dir = image_dir
         self.label_dir = label_dir
@@ -28,12 +28,13 @@ class CMADataset(Dataset):
         self.input_desc = input_desc
         self.legend_type = legend_type
         self.do_aug = do_aug
-        self.debug = True
+        self.debug = False
+        self.transforms = transforms
        
         input_df = pd.read_csv(self.input_desc)
 
         # Filter by 'poly' or 'line' or 'pt'
-        input_df = input_df[input_df['tile_legend'].str.contains(legend_type)]
+        input_df = input_df[input_df['tile_legend'].str.contains(f"_{legend_type}.tif")]
 
         if legend_type == 'poly':
                 self.load_legend_median_values()            
@@ -48,7 +49,13 @@ class CMADataset(Dataset):
         input_df.reset_index(drop=True, inplace=True)
 
         if num_samples:
-            sample_org_files = input_df['orig_file'].unique()[:num_samples]
+            # Polys
+            if type(num_samples) is list:
+                sample_org_files = num_samples
+            # Lines and points
+            elif type(num_samples) is int:
+                sample_org_files = input_df['orig_file'].unique()[:num_samples]
+            
             input_df = input_df[input_df['orig_file'].isin(sample_org_files)]
             input_df.reset_index(drop=True, inplace=True)
 
@@ -78,8 +85,6 @@ class CMADataset(Dataset):
         else:
             if os.path.exists(sped_label_path):
                 label = Image.open(sped_label_path).convert("RGB")
-            else: # TODO : this needs to go away. We are using till suresh creates sped label folder for test
-                label = Image.open(label_path).convert("RGB")
 
         label_mask = Image.open(mask_path).convert("L")
 
@@ -124,8 +129,7 @@ class CMADataset(Dataset):
         return input, label_mask
 
     def load_legend_median_values(self):
-        legend_median_data_path = '/home/ravi/cma_challenge/legends_median_data.json'
-        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/everything_legends_median_data.json')
+        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data.json')
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
         self.legend_data = legend_data
@@ -152,7 +156,6 @@ class CMAInferenceDataset(Dataset):
                 input_df = input_df.reset_index(drop=True)
                 self.input_df = input_df
                 
-
         if num_samples:
             sample_org_files = self.input_df['inp_file_name'].unique()[:num_samples]
             input_df = self.input_df[self.input_df['inp_file_name'].isin(sample_org_files)]
@@ -205,9 +208,7 @@ class CMAInferenceDataset(Dataset):
         return input, mask_tile_name
 
     def load_legend_median_values(self):
-        #legend_median_data_path = '../data/all_legends_median_data.json'
-        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/everything_legends_median_data.json')
-
+        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data.json')
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
         self.legend_data = legend_data       
