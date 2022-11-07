@@ -1,9 +1,6 @@
 import argparse
 import torch
 import os
-# import albumentations as A
-# from albumentations.pytorch import ToTensorV2
-#from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from unet import UNET
@@ -44,16 +41,18 @@ def train_fn(epoch_index, loader, test_loader, model, optimizer, loss_fn, scaler
 
         loss.backward()
         optimizer.step()
+        running_loss += loss.item()
 
         # Print loss to console every 10th step
         if i % 10 == 9:
-            running_loss += loss.item()
+            
             last_loss = running_loss / 10 # loss per batch
             print(f"epoch {epoch_index}  batch {i + 1}/{len(loader)} loss: {last_loss}")
             running_loss = 0.
-            
-        # Write to tensorboard every 500th step
-        if i % 500 == 499:
+
+        if i % 1500 == 1499 or i == len(loader) - 1:    
+        # # Write to tensorboard every 500th step
+        # if i % 500 == 499 or i == len(loader) - 1:
 
             global_step_index = epoch_index*len(loader) + i
             writer.add_scalar(f"train_loss", last_loss, global_step_index)
@@ -70,7 +69,7 @@ def train_fn(epoch_index, loader, test_loader, model, optimizer, loss_fn, scaler
 
             writer.flush()
 
-        # Save checkpoint every 2k step or at the last step of the epoch
+        # Save checkpoint every 2k steps or at the last step of the epoch
         if i % 2000 == 1999 or i == len(loader) - 1:
             CHEKPOINT_PATH_epoch_path = CHEKPOINT_PATH.replace('.pth.tar', f"_epoch_{epoch_index:02d}_step_{i:05d}.pth.tar")
             save_checkpoint(model, optimizer, CHEKPOINT_PATH_epoch_path)
@@ -116,10 +115,12 @@ def main(args):
         TEST_LABEL_DIR,
         TEST_MASK_DIR,
         TEST_DESC,
+        LEGEND_TYPE,
         BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
         NUM_SAMPLES,
+        USE_AUGMENTATIONS
     )
 
     print(f'Got the loaders')
@@ -140,22 +141,7 @@ def main(args):
         print(epoch_index, last_loss)
 
         # save checkpoint
-        save_checkpoint(model, optimizer, checkpoint_path)
-
-        # check accuracy
-        print(f'Training metrics...')
-        check_accuracy(train_loader, model, device=DEVICE)
-        print(f'Testing metrics...')
-        check_accuracy(test_loader, model, device=DEVICE)
-
-        if NUM_SAMPLES:
-            save_predictions_as_imgs(
-                train_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
-            )
-        else:
-            save_predictions_as_imgs(
-                test_loader, model, folder=SAVED_IMAGE_PATH, device=DEVICE
-            )         
+        save_checkpoint(model, optimizer, checkpoint_path)       
 
 def test_save_predictions():
     model = deeplabv3_resnet101(pretrained=False, progress=True, num_classes=1, aux_loss=None)
@@ -172,6 +158,7 @@ def test_save_predictions():
         TEST_LABEL_DIR,
         TEST_MASK_DIR,
         TEST_DESC,
+        LEGEND_TYPE,
         BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
