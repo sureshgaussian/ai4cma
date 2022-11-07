@@ -2,6 +2,12 @@ import torch
 from torchvision.models.segmentation import deeplabv3_resnet50
 from dataset_map import MapDataset
 from torch.utils.data import DataLoader
+from glob import glob
+import os
+from pathlib import Path
+import json
+import cv2
+import numpy as np
 
 DOWNSCALED_DATA_PATH = '/home/suresh/challenges/ai4cma/downscaled_data'
 
@@ -81,3 +87,56 @@ def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
     }
     print(f"=> Saving checkpoint to {filename}")
     torch.save(checkpoint, filename)
+
+
+def restore_prediction_dimensions():
+    '''
+    Raw predictions are of size 1024x1024. 
+    Upscale the predictions to the original image size
+    '''
+
+    inp_val_dir = '/home/suresh/challenges/ai4cma/data/validation'
+    json_paths = glob(os.path.join(inp_val_dir, '*.json'))
+
+    step = 'validation'
+    for json_path in json_paths:
+
+        with open(json_path) as fp:
+            json_data = json.load(fp)
+
+        out_w = json_data['imageWidth']
+        out_h = json_data['imageHeight']
+
+        pred_name = Path(json_path).stem + '.png'
+        pred_path = os.path.join('predictions_raw', step, pred_name)
+
+        print(pred_path)
+
+        pred = cv2.imread(pred_path, 0)
+
+        # Draw a convex hull around all the blobs.
+        # This approach still has some problems dealing with false positives.
+        # But works in most of the cases.
+        contours = cv2.findContours(pred, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+        cont = np.vstack(contours)
+        hull = cv2.convexHull(cont)
+        uni_hull = []
+        uni_hull.append(hull)
+        pred_final = np.zeros(pred.shape, dtype='uint8')
+        cv2.drawContours(pred_final, uni_hull, -1, 1, -1)
+        # cv2.imshow('pred', pred*255)
+        # cv2.imshow('pred_final', pred_final*255)
+        # cv2.waitKey(0)
+
+        # Restore prediction to orignal dimensions
+        pred_restored = cv2.resize(pred_final, (out_w, out_h), cv2.INTER_NEAREST)
+        pred_out_path = os.path.join('predictions_upscaled', step, pred_name)
+        cv2.imwrite(pred_out_path, pred_restored)
+
+        cv2.destroyAllWindows()
+        # break
+
+if __name__ == '__main__':
+    restore_prediction_dimensions()
+
+

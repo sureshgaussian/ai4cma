@@ -30,9 +30,10 @@ with torch.no_grad():
 
             img = np.moveaxis(img, 0, -1)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            # imshow_r(img_name, img, True)
             mask = np.squeeze(mask)
-            # imshow_r(img_name, mask, True)
+
+            pred_save_path = os.path.join('predictions_raw', step, img_name)
+            cv2.imwrite(pred_save_path, pred[0])
 
             pred_contours = cv2.findContours(pred[0], cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
             cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 2)
@@ -42,7 +43,7 @@ with torch.no_grad():
 
             # imshow_r('img', img, True)
 
-            img_save_path = os.path.join('predictions', step, img_name)
-            cv2.imwrite(img_save_path, img)
+            viz_save_path = os.path.join('predictions_viz', step, img_name)
+            cv2.imwrite(viz_save_path, img)
 
 
