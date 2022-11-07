@@ -3,6 +3,7 @@ from unet import UNET
 import torch
 from dataset import CMADataset
 from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
 from config import *
 import numpy as np
 import cv2
@@ -10,6 +11,7 @@ import json
 from glob import glob
 from utils_show import imshow_r, to_rgb
 from PIL import Image
+import pandas as pd
 
 def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
     checkpoint = {
@@ -33,19 +35,47 @@ def get_loaders(
     val_label_dir,
     val_mask_dir,
     val_desc,
-    batch_size,
-    num_workers=4,
+    legend_type,
+    batch_size,    
+    num_workers=4,    
     pin_memory=True,
     num_samples = None,
-    persistent_workers = False
+    do_aug = False,
+    persistent_workers = False,
+    
+    
 ):
+
+    if legend_type == 'poly':
+        # # samples with max number of polygon maps. 
+        # train_samples = ['OK_250K.tif', 'DC_Wash_West.tif', 'CA_SanJose.tif', 'AK_Noatak.tif', 'CO_Bailey.tif']
+        # test_samples = ['CA_Redding.tif', 'CA_InyoMtns.tif', 'ID_LakeWalcott.tif', 'CA_NV_LasVegas.tif', 'AZ_Flagstaff.tif']
+
+        # samples with least number of polygon maps
+        train_samples = ['MA_Nashua.tif', 'NE_PlatteR_2005a.tif', 'NE_PlatteR_2005b_basemap.tif', 'AK_LookoutRidge.tif', 'AK_PointLay.tif']
+        test_samples = ['OR_Buxton.tif', 'AR_Jasper.tif', 'CA_SanSimeon.tif', 'ID_basement.tif', 'AK_Utukok.tif']
+    else:
+        train_samples = 15
+        test_samples = 15
+
+    transform = transforms.Compose([
+        # resize
+        transforms.RandomHorizontalFlip,
+        transforms.RandomAffine,
+        transforms.ColorJitter,
+        transforms.GaussianBlur
+        # normalize
+    ])
+
     train_ds = CMADataset(
         image_dir=train_img_dir,
         label_dir=train_label_dir,
         mask_dir=train_mask_dir,
         input_desc=train_desc,
         num_samples=num_samples,
-        do_aug=True
+        legend_type=legend_type,
+        do_aug=do_aug,
+        transforms = transform
     )
     train_loader = DataLoader(
         train_ds,
@@ -63,9 +93,10 @@ def get_loaders(
         image_dir=train_img_dir,
         label_dir=train_label_dir,
         mask_dir=train_mask_dir,
-        input_desc=train_desc,
-        num_samples=5,
-        do_aug=True
+        input_desc=train_desc,        
+        num_samples=train_samples,
+        legend_type=legend_type,
+        do_aug=do_aug
     )
     train_loader_mini = DataLoader(
         train_ds_mini,
@@ -82,7 +113,8 @@ def get_loaders(
         label_dir=val_label_dir,
         mask_dir=val_mask_dir,
         input_desc=val_desc,
-        num_samples=5,
+        num_samples=test_samples,
+        legend_type=legend_type,
     )
     val_loader = DataLoader(
         val_ds,
@@ -180,7 +212,6 @@ def draw_contours(img_batch, pred_batch, target_batch):
         cv2.imwrite(tm_save_path, image)
         image = cv2.imread(tm_save_path)
 
-
         legend = np.moveaxis(image[3:,:,:], 0, -1)
 
         pred_contours = cv2.findContours(pred[0], cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
@@ -195,7 +226,7 @@ def draw_contours(img_batch, pred_batch, target_batch):
 
     os.remove(tm_save_path)
     overlays = np.array(overlays)
-    im_merged = merge_images(overlays, [2,8])
+    im_merged = merge_images(overlays, [img_batch.shape[0]//8,8])
 
     return im_merged*255
 
@@ -230,31 +261,72 @@ def preprocess_points(points):
     points = [(int(point[0]), int(point[1]))for point in points]
     return points
 
-def draw_contours_big(img_path, pred_path, target_path):
+def get_only_object(img, mask, back_img, debug = False):
+    '''
+    foreground -> area of interest (predicitons + ground truth)
+    from the input image, show only foreground in RGB, everything else in grayscale
+    '''
+    fg = cv2.bitwise_or(img, img, mask=mask)
+    mask_inv = 1 - mask
+    fg_back_inv = cv2.bitwise_or(back_img, back_img, mask=mask_inv)
+    final = cv2.bitwise_or(fg, fg_back_inv)
+    if debug:
+        imshow_r('mask', mask, True)
+        imshow_r('fg', fg)
+        imshow_r('mask_inv', mask_inv)
+        imshow_r('fg_back_inv', fg_back_inv)
+        imshow_r('final', final, True)
+    return final
+
+def draw_contours_big(img_path, pred_path, target_path = None):
     
-    img = cv2.imread(img_path, 0)
-    img = to_rgb(img)
+    img = cv2.imread(img_path)
+    img_grey = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
+    img_grey = to_rgb(img_grey)
     pred = cv2.imread(pred_path, 0)
-    target = cv2.imread(target_path, 0)
+    print(np.unique(pred, return_counts=True))
+
+    if os.path.exists(target_path):
+        target = cv2.imread(target_path, 0)
+        pred_or_target_mask = cv2.bitwise_or(pred, target)
+
+    img = get_only_object(img, pred_or_target_mask, img_grey, False)
+
+    if os.path.exists(target_path):
+        target_contours = cv2.findContours(target, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
+        cv2.drawContours(img, target_contours, -1, (0, 255, 0), 40)
 
     pred_contours = cv2.findContours(pred, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
     cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 20)
 
-    target_contours = cv2.findContours(target, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
-    cv2.drawContours(img, target_contours, -1, (0, 255, 0), 20)
-
-    imshow_r('overlay', img, True)
+    imshow_r(os.path.basename(target_path), img, True)
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
 
+    # Overlay predictions and ground truth
     step = 'testing'
-    dir = os.path.join(RESULTS_DIR, step)
-    for pred_name in os.listdir(dir):
-        img_path = os.path.join(CHALLENGE_INP_DIR, 'training', '_'.join(pred_name.split('_')[:2]) + '.tif')
-        target_path = os.path.join(CHALLENGE_INP_DIR, 'training', pred_name)
-        pred_path = os.path.join(dir, pred_name)
+    csv_path = os.path.join(TILED_INP_DIR, INFO_DIR, f"challenge_{step}_files.csv")
+    df = pd.read_csv(csv_path)
 
-        print(img_path, target_path, pred_path)
+    inp_dir = os.path.join(CHALLENGE_INP_DIR, 'training' if step in ['training', 'testing'] else 'validation')
+    pred_dir = os.path.join(RESULTS_DIR, step)
+
+    for ind, row in df.iterrows():
+
+        if '_line' not in row['mask_fname']:
+            continue
+
+        img_path = os.path.join(inp_dir, row['inp_fname'])
+        pred_path = os.path.join(pred_dir, row['mask_fname'])
+        target_path = os.path.join(inp_dir, row['mask_fname'])
+        
+        # Prediction is not available
+        if not os.path.exists(pred_path):
+            print('Prediction is not generated. Run inference to generate predictions')
+            continue
+
+        print(img_path, pred_path, target_path)
         draw_contours_big(img_path, pred_path, target_path)
 
     # # Test dilation
