@@ -8,6 +8,8 @@ from env import SAVE_DEBUG_IMGS
 def pil_to_opencv(img):
     if not isinstance(img, np.ndarray):
         return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    if np.max(img) == 1:
+        img = img*255
     return img
 
 def imshow_r(wdw, img_src, stop=False):
@@ -18,19 +20,23 @@ def imshow_r(wdw, img_src, stop=False):
         height, width = sorted(img, key=lambda x: x.shape[0])[0].shape[:2]
         imgs = [cv2.resize(im, (width, height)) for im in img]
         img = np.hstack(tuple(imgs))
+    else:
+        img = pil_to_opencv(img)
 
     if SAVE_DEBUG_IMGS:
         cv2.imwrite(os.path.join('debug_images', wdw + '.png'), img)
         return
 
-    cv2.imshow(wdw, imutils.resize(img, width=800))
+    cv2.imshow(wdw, imutils.resize(img, width=1800))
     
     if stop:
         cv2.waitKey()
 
 def to_rgb(image):
     ''' Convert image to RGB '''
-    return cv2.cvtColor(np.array(image).copy(), cv2.COLOR_GRAY2BGR)*255
+    if np.max(image == 1):
+        image = image*255
+    return cv2.cvtColor(np.array(image).copy(), cv2.COLOR_GRAY2RGB)
 
 def to_grayscale(image):
     return cv2.cvtColor(image.copy(), cv2.COLOR_RGB2GRAY)
