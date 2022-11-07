@@ -1,5 +1,4 @@
-
-from torchvision.models.segmentation import deeplabv3_resnet50
+import os
 import torch.nn as nn
 import torch.optim as optim
 import torch
@@ -52,5 +51,5 @@ if __name__ == '__main__':
         check_accuracy(train_loader, model, num_batches='all')
         print("Checking VALIDATION accuracy")
         check_accuracy(val_loader, model, num_batches='all')
-        CHEKPOINT_PATH_epoch_path = f"mapmodel_epoch_{epoch:02d}.pth.tar"
+        CHEKPOINT_PATH_epoch_path = os.path.join('checkpoints', f"mapmodel_epoch_{epoch:02d}.pth.tar")
         save_checkpoint(model, optimizer, CHEKPOINT_PATH_epoch_path)
