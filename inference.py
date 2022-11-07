@@ -228,13 +228,20 @@ def infer_polys(in_tiles, input_file, label_fname, label_pattern_fname, label,
         # print(f"raw_prediction : {raw_prediction.shape}")
         # imshow_r('raw_prediction', raw_prediction*255, True)
 
-        # json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
-        # data_dir = 'validation' if args.stage == 'validation' else 'training'
-        # legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
-        legend_json_path = input_file.replace('.tif', '.json')
-        post_processing_mask = discard_preds_outside_map(legend_json_path, debug=False)
-        # print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
-        # imshow_r('post_processing_mask', post_processing_mask*255, True)     
+        print(input_file)
+        map_only_mask_path = os.path.join(ROOT_PATH, 'downscaled_data/predictions_upscaled/validation', inp_file_name.replace('.tif', '.png'))
+        print(map_only_mask_path)
+        post_processing_mask = cv2.imread(map_only_mask_path, 0)
+        print(np.unique(post_processing_mask, return_counts=True))
+        imshow_r('post_proc_mask', post_processing_mask, True)
+
+        # # json_name = '_'.join(label_fname.split('_')[:2]) + '.json'
+        # # data_dir = 'validation' if args.stage == 'validation' else 'training'
+        # # legend_json_path = os.path.join(CHALLENGE_INP_DIR, data_dir, json_name)
+        # legend_json_path = input_file.replace('.tif', '.json')
+        # post_processing_mask = discard_preds_outside_map(legend_json_path, debug=False)
+        # # print(f"post_processing_mask {np.unique(post_processing_mask, return_counts=True)}")
+        # # imshow_r('post_processing_mask', post_processing_mask*255, True)     
         
         post_processed_mask = raw_prediction * post_processing_mask
         # print(f"post_processed mask {np.unique(post_processing_mask, return_counts=True)}")
