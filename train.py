@@ -180,5 +180,5 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
     parser.add_argument('-m', '--model_checkpoint_path', default=CHEKPOINT_PATH, help='checkpoint path')
     args = parser.parse_args()
-    # main(args)
-    test_save_predictions(args)
+    main(args)
+    # test_save_predictions(args)
