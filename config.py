@@ -42,8 +42,8 @@ DOWNSCALED_DATA_PATH = os.path.join(ROOT_PATH, 'downscaled_data')
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'Using device = {DEVICE}')
-BATCH_SIZE = 64
-NUM_EPOCHS = 2
+BATCH_SIZE = 24
+NUM_EPOCHS = 10
 NUM_WORKERS = 4
 TILE_SIZE = 256
 IMAGE_HEIGHT = TILE_SIZE  # 1280 originally
@@ -59,7 +59,9 @@ USE_POST_PROCESSING = True
 
 USE_AUGMENTATIONS = True
 
-EXP_NAME = 'median_rgb_deeplabv3_line'
+LEGEND_TYPE = 'pt'
+EXP_NAME = f'median_rgb_deeplabv3_{LEGEND_TYPE}'
+
 
 EXP_NAME = f"{EXP_NAME}_{NUM_SAMPLES if NUM_SAMPLES else 'all'}"
 
