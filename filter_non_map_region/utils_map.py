@@ -8,11 +8,7 @@ from pathlib import Path
 import json
 import cv2
 import numpy as np
-
-DOWNSCALED_DATA_PATH = '/home/suresh/challenges/ai4cma/downscaled_data'
-
-BATCH_SIZE = 2
-NUM_WORKERS = 2
+from configs_map import *
 
 def load_model():
 
@@ -89,16 +85,15 @@ def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
     torch.save(checkpoint, filename)
 
 
-def restore_prediction_dimensions():
+def restore_prediction_dimensions(step):
     '''
     Raw predictions are of size 1024x1024. 
     Upscale the predictions to the original image size
     '''
 
-    inp_val_dir = '/home/suresh/challenges/ai4cma/data/validation'
-    json_paths = glob(os.path.join(inp_val_dir, '*.json'))
+    inp_dir = os.path.join(CHALLENGE_INP_DIR, step)
+    json_paths = glob(os.path.join(inp_dir, '*.json'))
 
-    step = 'validation'
     for json_path in json_paths:
 
         with open(json_path) as fp:
@@ -136,7 +131,23 @@ def restore_prediction_dimensions():
         cv2.destroyAllWindows()
         # break
 
+def generate_downscaled_data(step):
+    
+    json_paths = glob(os.path.join(CHALLENGE_INP_DIR, step, '*.json'))
+    img_paths = [json_path.replace('.json', '.tif') for json_path in json_paths]
+
+    for ind, img_path in enumerate(img_paths):
+
+        print(f"{ind}/{len(img_paths)}")
+        img = cv2.imread(img_path)
+        img = cv2.resize(img, (1024, 1024))
+        save_name = Path(img_path).stem + '.png'
+        save_path = os.path.join(DOWNSCALED_DATA_PATH, 'imgs', save_name)
+        cv2.imwrite(save_path, img)
+
 if __name__ == '__main__':
+    step = 'validation'
+    generate_downscaled_data(step)
     restore_prediction_dimensions()
 
 

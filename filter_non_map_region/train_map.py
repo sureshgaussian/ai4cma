@@ -3,11 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch
 from utils_map import load_model, get_loader, check_accuracy, save_checkpoint
-
-DOWNSCALED_DATA_PATH = '/home/suresh/challenges/ai4cma/downscaled_data'
-
-BATCH_SIZE = 2
-NUM_WORKERS = 2
+from configs_map import *
 
 if __name__ == '__main__':
 

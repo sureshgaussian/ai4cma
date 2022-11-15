@@ -11,14 +11,15 @@ from inference import convert_mask_to_raster_tif
 from PIL import Image
 from utils import draw_contours_big
 from utils_show import imshow_r
+from postprocessing import generate_legend_bboxes_masks, remove_false_positives_within_map
 
 
-def remove_non_map_region(step):
+def remove_false_positives_outside_map(step):
     '''
     Final post processing step to apply for all types (poly, line, pt)
     '''
-    raw_predictions_dir = 'gaussiansolutionsteam'
-    target_dir = 'gaussiansolutionsteam_postprocessed'
+    raw_predictions_dir = os.path.join(RESULTS_DIR, step)
+    target_dir = os.path.join(POSTP_OUTMAP_DIR, step)
     os.makedirs(target_dir, exist_ok=True)
     map_only_masks_dir = os.path.join(ROOT_PATH, 'downscaled_data/predictions_upscaled', step)
     inp_desc_path = os.path.join(TILED_INP_DIR, INFO_DIR, f'challenge_{step}_set.csv')
@@ -55,4 +56,8 @@ def remove_non_map_region(step):
         break
 
 if __name__ == '__main__':
-    remove_non_map_region(step = 'validation')
+
+    step = 'testing'
+    generate_legend_bboxes_masks(step)
+    remove_false_positives_within_map(step)
+    remove_false_positives_outside_map(step)

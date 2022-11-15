@@ -11,8 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import imshow_r, to_rgb
 import PIL
-
-CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/data'
+from configs_map import *
 
 class MapDataset(Dataset):
     def __init__(self, data_root, step, do_aug = False) -> None:
@@ -21,7 +20,7 @@ class MapDataset(Dataset):
         self.step = step
         self.load_req_img_names()
         self.load_paths()
-        self.do_aug = do_aug    
+        self.do_aug = do_aug
         self.debug = False
         
     def __len__(self):
