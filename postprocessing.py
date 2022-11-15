@@ -279,6 +279,18 @@ def refine_line_predictions():
     # Instead of just erosion, find the line in the original image and see if you can find a line over there. 
     pass
 
+def post_process_lines(step):
+
+    pred_paths_all = glob(os.path.join(RESULTS_DIR, step, '*.tif'))
+    pred_paths_lines = [pred_path for pred_path in pred_paths_all if '_line.tif' in pred_path]
+    print(pred_paths_lines)
+    for pred_path_line in pred_paths_lines:
+        pred_name = os.path.basename(pred_path_line)
+        pred = cv2.imread(pred_path_line)
+        imshow_r(f'raw_{pred_name}', pred, True)
+        pred_eroded = cv2.erode(pred, np.ones((5, 5), np.uint8))
+        imshow_r(f'eroded_{pred_name}', pred_eroded, True)
+
 
 if __name__ == '__main__':
 
@@ -292,5 +304,6 @@ if __name__ == '__main__':
 
     #     discard_preds_outside_map(json_path, debug=True)
     step = 'testing'
-    generate_legend_bboxes_masks(step)
-    remove_false_positives_within_map(step)
+    post_process_lines(step)
+    # generate_legend_bboxes_masks(step)
+    # remove_false_positives_within_map(step)
