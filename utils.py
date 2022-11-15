@@ -314,7 +314,7 @@ def draw_contours_big(img_path, pred_path, target_path = None, debug = False):
 if __name__ == '__main__':
 
     # Overlay predictions and ground truth
-    step = 'validation'
+    step = 'testing'
     csv_path = os.path.join(TILED_INP_DIR, INFO_DIR, f"challenge_{step}_files.csv")
     df = pd.read_csv(csv_path)
 
@@ -328,7 +328,7 @@ if __name__ == '__main__':
         if os.path.exists(save_path):
             continue
 
-        if '_pt' not in row['mask_fname']:
+        if '_line' not in row['mask_fname']:
             continue
 
         img_path = os.path.join(inp_dir, row['inp_fname'])
