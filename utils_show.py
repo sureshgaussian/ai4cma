@@ -12,7 +12,7 @@ def pil_to_opencv(img):
         img = img*255
     return img
 
-def imshow_r(wdw, img_src, stop=False):
+def imshow_r(wdw, img_src, stop=False, width = 800):
     img = img_src.copy()
     ''' Parsing cv2.imshow() '''
     if isinstance(img, list):
@@ -27,7 +27,7 @@ def imshow_r(wdw, img_src, stop=False):
         cv2.imwrite(os.path.join('debug_images', wdw + '.png'), img)
         return
 
-    cv2.imshow(wdw, imutils.resize(img, width=1800))
+    cv2.imshow(wdw, imutils.resize(img, width=width))
     
     if stop:
         cv2.waitKey()

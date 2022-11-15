@@ -6,13 +6,14 @@ from matplotlib import pyplot as plt
 import cv2
 import random
 import os
-from tqdm.notebook import tqdm
 from joblib import Parallel, delayed
 import math
 import json
 from datetime import datetime
 import glob
 import argparse
+from utils import preprocess_points
+
 def overlap_distance_calculate(mat_true, mat_pred, min_valid_range=.1, parallel_workers=1):
     """
     mat_true, mat_pred: 2d matrices, with 0s and 1s only
@@ -29,7 +30,7 @@ def overlap_distance_calculate(mat_true, mat_pred, min_valid_range=.1, parallel_
 
     # first calculate the overlapping pixels
     mat_overlap=mat_pred*mat_true
-    for x_true, y_true in tqdm(np.argwhere(mat_overlap==1)):
+    for x_true, y_true in np.argwhere(mat_overlap==1):
         lowest_dist_pairs.append((((x_true, y_true), (x_true, y_true)), 0.0)) 
         points_done_true.add((x_true, y_true))
         points_done_pred.add((y_true, x_true))
@@ -56,15 +57,15 @@ def overlap_distance_calculate(mat_true, mat_pred, min_valid_range=.1, parallel_
             result.append((((x_true, y_true), (x_pred, y_pred)), dist_square))
         return result
 
-    candidates=[(x_true, y_true) for x_true, y_true in tqdm(np.argwhere(mat_true==1)) if (x_true, y_true) not in points_done_true]
-    distances=Parallel(n_jobs=parallel_workers)(delayed(nearest_pixels)(x_true, y_true) for x_true, y_true in tqdm(candidates))
+    candidates=[(x_true, y_true) for x_true, y_true in np.argwhere(mat_true==1) if (x_true, y_true) not in points_done_true]
+    distances=Parallel(n_jobs=parallel_workers)(delayed(nearest_pixels)(x_true, y_true) for x_true, y_true in candidates)
     distances = [item for sublist in distances for item in sublist]
 
     # sort based on distances
     distances=sorted(distances, key=lambda x: x[1])
 
     # find the lowest distance pairs
-    for ((x_true, y_true), (x_pred, y_pred)), distance in tqdm(distances):
+    for ((x_true, y_true), (x_pred, y_pred)), distance in distances:
         if ((x_true, y_true) in points_done_true) or ((x_pred, y_pred) in points_done_pred):
             # do not consider a taken point again
             continue
@@ -122,7 +123,7 @@ def match_by_color(img, legend_coor, color_range=4, plot=False):
     legend_coor: coordinate for the legend feature, from the legend json file
     """
     # get the legend coors and the predominant color
-    (x_min, y_min), (x_max, y_max) = legend_coor            
+    (x_min, y_min), (x_max, y_max) = preprocess_points(legend_coor)          
     legend_img = img[int(y_min):int(y_max), int(x_min):int(x_max)]
     if plot:
         print('legend feature:')
@@ -268,7 +269,6 @@ def feature_f_score(map_image_path, predicted_raster_path, true_raster_path, leg
             print('total prediction points contended:', total_pred)
             precision=points_from_overlap/total_pred if total_pred!=0 else 0.0
             
-            
             true_difficult=mat_true*difficult_pixels
             num_mat_true_difficult=np.sum(true_difficult) 
             print('num_mat_true_difficult:', num_mat_true_difficult)
@@ -347,7 +347,9 @@ def calculate_score(info_csv, score_out_csv):
     # TODO: should be a faster way to do the following
     results =  []
     for idx, row in df.iterrows():
-        #print(row)
+        # print(row)
+        if not os.path.exists(row["original_raster_path"]):
+            continue
         results.append(feature_f_score(row["input_image_path"], row["predicted_image_path"], row["original_raster_path"], row["legend_json_path"]))
     results_df = pd.DataFrame(results, columns=['precision', 'recall', 'f1_score'])
     #print("results_df columns are: ", results_df.columns) 
@@ -367,9 +369,10 @@ def calculate_score(info_csv, score_out_csv):
 
 def process_args(args):
     # prepare the required csv for scoring from the args
-    input_csv = args.csv_file
-    results_dir = args.results_dir
     inputs_dir = args.inputs_dir
+    results_dir = args.results_dir
+    input_csv = args.csv_file
+    
     score_csv_file = "temp_score_input.csv"
     get_info_csv(input_csv, results_dir, inputs_dir, score_csv_file)
     # call calculate_score with the csv file

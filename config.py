@@ -33,10 +33,19 @@ WORKING_DIR = "/home/suresh/challenges/ai4cma/working_dir"
 MODEL_NAME = "deeplabv3"
 INF_MODEL_PATH = "submission_v1_model.pth.tar"
 
+# vis images
+RESULTS_CNTS_DIR = os.path.join(ROOT_PATH, 'results_contours')
 
 # Downscaled data
 DOWNSCALED_DATA_PATH = os.path.join(ROOT_PATH, 'downscaled_data')
 
+# Directories to save post processed results. Follows the same structure as RESULTS_DIR
+# Dir to save the masks of legend bbox
+LEGEND_BBOXES_MASKS_DIR = os.path.join(ROOT_PATH, 'legend_bboxes_masks')
+# Dir to save results from step 1 of post processing. Remove false positives WITHIN the area of map
+POSTP_INMAP_DIR = os.path.join(ROOT_PATH, 'results_pp_within_map')
+# Dir to save results from step 2 of post processing. Remove false postives OUTSIDE the area of map
+POSTP_OUTMAP_DIR = os.path.join(ROOT_PATH, 'results_pp_outside_map')
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
@@ -55,7 +64,7 @@ NUM_SAMPLES = None
 TRAIN_TEST_SPLIT_RATIO = 0.8
 EMPTY_TILES_RATIO=0.6
 IN_CHANNELS = 6
-USE_POST_PROCESSING = True
+USE_POST_PROCESSING = False
 
 USE_AUGMENTATIONS = True
 

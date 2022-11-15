@@ -156,7 +156,7 @@ def convert_mask_to_raster_tif(input_file, output_file):
     assert(width == image.width)
     assert(height == image.height)
     image = np.array(image)
-
+    print(image.shape)
     image = image
 
     if len(np.unique(image)) > 2:
@@ -526,8 +526,6 @@ def build_remaining_csv_file(inp_csv_file, results_dir, out_csv_file):
     odf.to_csv(out_csv_file, index=False)
     return
 
-
-
 def process_args(args):
 
     if args.dataset == 'mini':
@@ -589,7 +587,7 @@ def process_args(args):
     in_df = pd.read_csv(rem_csv_file)
     in_poly_df = in_df[in_df['legend_type']=='poly']
     in_line_df = in_df[in_df['legend_type']=='line']
-    in_point_df = in_df[in_df['legend_type']=='point']
+    in_point_df = in_df[in_df['legend_type']=='pt']
     rem_poly_csv_file = rem_csv_file.replace('.csv', '_poly.csv')
     rem_point_csv_file = rem_csv_file.replace('.csv', '_point.csv')
     rem_line_csv_file = rem_csv_file.replace('.csv', '_line.csv')

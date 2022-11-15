@@ -245,7 +245,6 @@ def stitch_image_from_tiles(tile_size, base_filename, input_folder, output_filen
         print(f'{output_filename} has values >2 after stitching')
         exit(0)
 
-
     return output_filename
 
 def test_split_images_into_tiles():
