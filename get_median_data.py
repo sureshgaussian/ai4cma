@@ -32,10 +32,10 @@ def preprocess_points(points):
 def main(args):
 
     data_path = os.path.join(CHALLENGE_INP_DIR, args.stage)
-    legend_median_json_path = 'legends_median_data.json'
+    legends_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data.json')
 
-    if os.path.exists(legend_median_json_path):
-        with open(legend_median_json_path) as fp:
+    if os.path.exists(legends_median_data_path):
+        with open(legends_median_data_path) as fp:
             median_data = json.load(fp)
     else:
         median_data = {}
@@ -93,7 +93,6 @@ def main(args):
             
             median_data.update({img_name + '_' + suffix : rgb_median})
     
-    legends_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data_validation.json')
     with open(legends_median_data_path, 'w') as fp:
         json.dump(median_data, fp, indent=4)
 
