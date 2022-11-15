@@ -93,7 +93,7 @@ def main(args):
             
             median_data.update({img_name + '_' + suffix : rgb_median})
     
-    legends_median_data_path = f'legends_median_data.json'
+    legends_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data_validation.json')
     with open(legends_median_data_path, 'w') as fp:
         json.dump(median_data, fp, indent=4)
 

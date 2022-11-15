@@ -208,7 +208,7 @@ class CMAInferenceDataset(Dataset):
         return input, mask_tile_name
 
     def load_legend_median_values(self):
-        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data.json')
+        legend_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data_validation.json')
         with open(legend_median_data_path, "r") as fp:
             legend_data = json.load(fp)
         self.legend_data = legend_data       
