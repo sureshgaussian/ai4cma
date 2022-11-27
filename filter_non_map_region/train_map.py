@@ -7,7 +7,7 @@ from configs_map import *
 
 if __name__ == '__main__':
 
-    train_loader = get_loader(step = 'training', do_aug=True)
+    train_loader = get_loader(step = 'training', do_aug=True, shuffle = True)
     val_loader = get_loader(step = 'validation')
 
     print(f"train : {len(train_loader)}, validation : {len(val_loader)}")

@@ -29,20 +29,21 @@ class MapDataset(Dataset):
     def load_req_img_names(self):
         json_paths = glob(os.path.join(CHALLENGE_INP_DIR, self.step, '*.json'))
         img_names = [Path(json_path).stem for json_path in json_paths]
+        print(f"Num of samples {len(img_names)}")
         self.req_img_names = img_names
 
     def load_paths(self):
 
         img_paths_all = glob(os.path.join(self.data_root, 'imgs', '*.png'))
-        mask_paths_all = glob(os.path.join(self.data_root, 'masks', '*.png'))
     
         self.img_paths = []
         self.mask_paths = []
 
-        for img_path, mask_path in zip(img_paths_all, mask_paths_all):
+        for img_path in img_paths_all:
             if Path(img_path).stem in self.req_img_names:
                 self.img_paths.append(img_path)
-                self.mask_paths.append(mask_path)
+                # self.mask_paths.append(img_path.replace('imgs', 'masks'))
+                self.mask_paths.append(img_path)
 
     def __getitem__(self, index):
         
@@ -84,11 +85,9 @@ class MapDataset(Dataset):
 
         img = TF.to_tensor(img)
         mask = np.asarray(mask)
-        # img = np.asarray(img.copy())
 
         if self.debug:
             img_d = Image.fromarray(img.cpu().detach().numpy())
             img_d.show()
             
-
         return img, mask.copy(), img_name

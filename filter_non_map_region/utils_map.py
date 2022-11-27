@@ -62,7 +62,7 @@ def check_accuracy(loader, model, num_batches = 50):
     model.train()
     return dice_avg, dice_std, dice_median
 
-def get_loader(step, do_aug = False):
+def get_loader(step, do_aug = False, shuffle = False):
 
     dataset = MapDataset(DOWNSCALED_DATA_PATH, step = step, do_aug=do_aug)
 
@@ -70,10 +70,9 @@ def get_loader(step, do_aug = False):
         dataset, 
         batch_size=BATCH_SIZE, 
         num_workers=NUM_WORKERS,
-        shuffle=True,
-        drop_last=True
+        shuffle=shuffle
     )
-
+    
     return loader
 
 def save_checkpoint(model, optimizer, filename="./temp/my_checkpoint.pth.tar"):
@@ -103,7 +102,7 @@ def restore_prediction_dimensions(step):
         out_h = json_data['imageHeight']
 
         pred_name = Path(json_path).stem + '.png'
-        pred_path = os.path.join('predictions_raw', step, pred_name)
+        pred_path = os.path.join(DOWNSCALED_DATA_PATH, 'predictions_raw', step, pred_name)
 
         print(pred_path)
 
@@ -112,20 +111,23 @@ def restore_prediction_dimensions(step):
         # Draw a convex hull around all the blobs.
         # This approach still has some problems dealing with false positives.
         # But works in most of the cases.
-        contours = cv2.findContours(pred, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
-        cont = np.vstack(contours)
-        hull = cv2.convexHull(cont)
-        uni_hull = []
-        uni_hull.append(hull)
         pred_final = np.zeros(pred.shape, dtype='uint8')
-        cv2.drawContours(pred_final, uni_hull, -1, 1, -1)
+
+        contours = cv2.findContours(pred, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+        if len(contours):
+            cont = np.vstack(contours)
+            hull = cv2.convexHull(cont)
+            uni_hull = []
+            uni_hull.append(hull)
+            
+            cv2.drawContours(pred_final, uni_hull, -1, 1, -1)
         # cv2.imshow('pred', pred*255)
         # cv2.imshow('pred_final', pred_final*255)
         # cv2.waitKey(0)
 
         # Restore prediction to orignal dimensions
         pred_restored = cv2.resize(pred_final, (out_w, out_h), cv2.INTER_NEAREST)
-        pred_out_path = os.path.join('predictions_upscaled', step, pred_name)
+        pred_out_path = os.path.join(DOWNSCALED_DATA_PATH, 'predictions_upscaled', step, pred_name)
         cv2.imwrite(pred_out_path, pred_restored)
 
         cv2.destroyAllWindows()
@@ -138,7 +140,7 @@ def generate_downscaled_data(step):
 
     for ind, img_path in enumerate(img_paths):
 
-        print(f"{ind}/{len(img_paths)}")
+        print(f"{ind}/{len(img_paths)} {os.path.basename(img_path)}")
         img = cv2.imread(img_path)
         img = cv2.resize(img, (1024, 1024))
         save_name = Path(img_path).stem + '.png'
@@ -146,8 +148,6 @@ def generate_downscaled_data(step):
         cv2.imwrite(save_path, img)
 
 if __name__ == '__main__':
-    step = 'validation'
-    generate_downscaled_data(step)
-    restore_prediction_dimensions()
+    pass
 
 

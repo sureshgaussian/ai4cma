@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 import argparse
 from config import *
+import cv2
 
 def bounding_box(points):
     x_coordinates, y_coordinates = zip(*points)
@@ -65,6 +66,8 @@ def main(args):
             data = ds.read()
         #transform from channel first to channel last
         data = np.moveaxis(data, 0, -1)
+
+        
 
         #Get the legend position
         json_path = img_path.replace('.tif', '.json')

@@ -8,7 +8,7 @@ import rasterio
 import numpy as np
 from PIL import Image
 
-from postprocessing import discard_preds_outside_map
+# from postprocessing import discard_preds_outside_map
 from utils_show import imshow_r
 Image.MAX_IMAGE_PIXELS = None
 #from zmq import device
@@ -28,7 +28,7 @@ import torch
 from utils import (
     load_checkpoint
 )
-from postprocessing import discard_preds_outside_map
+# from postprocessing import discard_preds_outside_map
 from utils_show import imshow_r, to_grayscale, to_rgb
 import cv2
 import json

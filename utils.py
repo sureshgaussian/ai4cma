@@ -284,12 +284,19 @@ def draw_contours_big(img_path, pred_path, target_path = None, debug = False):
         img = img_path
     else:
         img = cv2.imread(img_path)
+        img = img.astype('uint8')
+
     img_grey = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
     img_grey = to_rgb(img_grey)
+
     if isinstance(pred_path, np.ndarray):
         pred = pred_path
     else:
         pred = cv2.imread(pred_path, 0)
+
+    if debug:
+        imshow_r('img', img, True)
+        imshow_r('pred', pred, True)
     # print(np.unique(pred, return_counts=True))
 
     if target_path and os.path.exists(target_path):
@@ -298,13 +305,14 @@ def draw_contours_big(img_path, pred_path, target_path = None, debug = False):
         img = get_only_object(img, pred_or_target_mask, img_grey, False)
     else:
         img = get_only_object(img, pred, img_grey, False)
+        # img = img
 
     if target_path and os.path.exists(target_path):
         target_contours = cv2.findContours(target, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
         cv2.drawContours(img, target_contours, -1, (0, 255, 0), 40)
 
     pred_contours = cv2.findContours(pred, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[0]
-    cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 20)
+    cv2.drawContours(img, pred_contours, -1, (0, 0, 255), 30)
 
     if debug:
         imshow_r(os.path.basename(target_path), img, True)
@@ -314,27 +322,35 @@ def draw_contours_big(img_path, pred_path, target_path = None, debug = False):
 if __name__ == '__main__':
 
     # Overlay predictions and ground truth
-    step = 'testing'
-    csv_path = os.path.join(TILED_INP_DIR, INFO_DIR, f"challenge_{step}_files.csv")
+    step = 'validation'
+    csv_path = os.path.join(TILED_INP_DIR, INFO_DIR, f"challenge_{step}_set.csv")
     df = pd.read_csv(csv_path)
 
     inp_dir = os.path.join(CHALLENGE_INP_DIR, 'training' if step == 'testing' else step)
+
     pred_dir = os.path.join(RESULTS_DIR, step)
-    # pred_dir = 'gaussiansolutionsteam'
+    # pred_dir = os.path.join(POSTP_INMAP_DIR, step)
+    # pred_dir = os.path.join(POSTP_OUTMAP_DIR, step)
 
     for ind, row in df.iterrows():
 
         save_path = os.path.join(RESULTS_CNTS_DIR, step, row['mask_fname'].replace('.tif', '.png'))
-        if os.path.exists(save_path):
-            continue
+        # if os.path.exists(save_path):
+        #     continue
 
-        if '_line' not in row['mask_fname']:
+        if '_poly' not in row['mask_fname']:
             continue
 
         img_path = os.path.join(inp_dir, row['inp_fname'])
         pred_path = os.path.join(pred_dir, row['mask_fname'])
         target_path = os.path.join(inp_dir, row['mask_fname'])
-        
+
+        # if 'MT_RedRockLakes_Qpfg_0_poly' not in pred_path:
+        #     continue
+
+        # if 'MT_RedRockLakes' not in pred_path:
+        #     continue
+
         # Prediction is not available
         if not os.path.exists(pred_path):
             print(pred_path)
@@ -342,9 +358,18 @@ if __name__ == '__main__':
             continue
 
         print(img_path, pred_path, target_path)
+
+        # pred = cv2.imread(pred_path, 0)
+        # pred = (pred*255).astype('uint8')
+        # print(np.min(pred), np.max(pred))
+        # # imshow_r('pred', pred, True)
+        # pred = cv2.threshold(pred,127,255,cv2.THRESH_BINARY)[1]
+        # print(pred.shape)
+        # # imshow_r('pred_thresh', pred, True)
+        # pred = np.array(pred, dtype='uint8')
         img = draw_contours_big(img_path, pred_path, target_path, debug = False)
 
-        imshow_r(row['mask_fname'], img, True)
+        imshow_r(row['mask_fname'], img, stop=True, width=800)
         # cv2.imwrite(save_path, img)
 
     # # Test dilation
@@ -360,4 +385,7 @@ if __name__ == '__main__':
     #     if np.sum(mask):
     #         dilate_mask(mask)
     #         break
+
+
+    # View points
 

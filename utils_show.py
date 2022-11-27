@@ -12,7 +12,7 @@ def pil_to_opencv(img):
         img = img*255
     return img
 
-def imshow_r(wdw, img_src, stop=False, width = 800):
+def imshow_r(wdw, img_src, stop=False, width = 1800):
     img = img_src.copy()
     ''' Parsing cv2.imshow() '''
     if isinstance(img, list):
