@@ -611,9 +611,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Inference parser')
     parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
     parser.add_argument('-s', '--stage', default='validation', help='which stage [ training, testing, validation]')
-    parser.add_argument('-mp', '--model_poly', default=CHEKPOINT_PATH, help='full path to the model for poly')
+    parser.add_argument('-mp', '--model_poly', default=INFERENCE_POLY_MODEL_PATH, help='full path to the model for poly')
     parser.add_argument('-mt', '--model_point', default=CHEKPOINT_PATH, help='full path to the model for point')
-    parser.add_argument('-ml', '--model_line', default=CHEKPOINT_PATH, help='full path to the model for line')
+    parser.add_argument('-ml', '--model_line', default=INFERENCE_LINE_MODEL_PATH, help='full path to the model for line')
 
     args = parser.parse_args()
     # prepare_for_submission()

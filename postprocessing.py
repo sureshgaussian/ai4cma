@@ -358,18 +358,8 @@ def copy_points_as_is(step):
 
 if __name__ == '__main__':
 
-    # input_dir = '/home/suresh/challenges/ai4cma/data/training'
-    # for raster_file_path in glob.glob(os.path.join(input_dir, '*.tif')):
-    #     print(raster_file_path)
-    #     if 'pt' not in raster_file_path:
-    #         continue
-        
-    #     json_path = [x for x in glob.glob(os.path.join(input_dir, '*.json')) if os.path.basename(x).split('.')[0] in raster_file_path][0]
-
-    #     discard_preds_outside_map(json_path, debug=True)
-
     step = 'validation'
-    # copy_points_as_is(step)
-    # post_process_lines(step)
-    # generate_legend_bboxes_masks(step)
+    copy_points_as_is(step)
+    post_process_lines(step)
+    generate_legend_bboxes_masks(step)
     remove_false_positives_within_map(step)

@@ -19,8 +19,6 @@ from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter()
 
 def train_fn(epoch_index, loader, test_loader, model, optimizer, loss_fn, scaler, train_loader_mini):
-    # print(f'In train function')
-    # loop = tqdm(loader)
     running_loss = 0.
     last_loss = 0.
 
@@ -176,7 +174,7 @@ def test_save_predictions(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Training parser')
-    parser.add_argument('-d', '--dataset', default='mini', help='which dataset [ mini, challenge]')
+    parser.add_argument('-d', '--dataset', default='challenge', help='which dataset [ mini, challenge]')
     parser.add_argument('-t', '--tile_size', default=TILE_SIZE, help='tile size INT')
     parser.add_argument('-m', '--model_checkpoint_path', default=CHEKPOINT_PATH, help='checkpoint path')
     args = parser.parse_args()

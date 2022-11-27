@@ -37,12 +37,12 @@ class CMADataset(Dataset):
         input_df = input_df[input_df['tile_legend'].str.contains(f"_{legend_type}.tif")]
 
         if legend_type == 'poly':
-                self.load_legend_median_values()            
-                # Discard invalid legends (legends with zero area)
-                input_df['stripped'] = input_df['tile_legend'].apply(lambda x : x.split('.')[0])
-                input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
-                input_df.drop(columns=['stripped'], inplace=True)
-                input_df.reset_index(drop=True, inplace=True)
+            self.load_legend_median_values()            
+            # Discard invalid legends (legends with zero area)
+            # input_df['stripped'] = input_df['tile_legend'].apply(lambda x : x.split('.')[0])
+            # input_df = input_df[input_df['stripped'].isin(list(self.legend_data.keys()))]
+            # input_df.drop(columns=['stripped'], inplace=True)
+            # input_df.reset_index(drop=True, inplace=True)
 
         # Empty tiles do not contribute in semantic segmentation
         input_df = input_df[input_df['empty_tile'] == True]

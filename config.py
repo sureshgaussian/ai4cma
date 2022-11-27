@@ -3,9 +3,10 @@ import torch
 
 # common paths (DO NOT CHANGE)
 ROOT_PATH = '/home/suresh/challenges/ai4cma'
-CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/data'
-MINI_CHALLENGE_INP_DIR = '/home/suresh/challenges/ai4cma/mini_data'
-RESULTS_DIR = '/home/suresh/challenges/ai4cma/results'
+
+CHALLENGE_INP_DIR = os.path.join(ROOT_PATH, 'data')
+MINI_CHALLENGE_INP_DIR = os.path.join(ROOT_PATH, 'mini_data')
+RESULTS_DIR = os.path.join(ROOT_PATH, 'results')
 
 TILED_INP_DIR = os.path.join(ROOT_PATH, 'tiled_inputs')
 INFO_DIR = "info"
@@ -28,7 +29,7 @@ TEST_LABEL_DIR = os.path.join(TEST_DATA_DIR, LEGENDS_DIR)
 TEST_MASK_DIR = os.path.join(TEST_DATA_DIR, MASKS_DIR)
 TEST_DESC = os.path.join(TEST_DATA_DIR, 'info/balanced_tiles.csv')
 
-WORKING_DIR = "/home/suresh/challenges/ai4cma/working_dir"
+WORKING_DIR = os.path.join(ROOT_PATH, 'working_dir')
 
 MODEL_NAME = "deeplabv3"
 INF_MODEL_PATH = "submission_v1_model.pth.tar"
@@ -70,10 +71,11 @@ USE_AUGMENTATIONS = True
 
 LEGEND_TYPE = 'poly' # To filter the dataset while training. Doesn't impact the inference
 EXP_NAME = f'median_rgb_deeplabv3_{LEGEND_TYPE}'
-
-
 EXP_NAME = f"{EXP_NAME}_{NUM_SAMPLES if NUM_SAMPLES else 'all'}"
 
 CHEKPOINT_PATH = os.path.join('temp', f"my_checkpoint_{EXP_NAME}.pth.tar")
+INFERENCE_POLY_MODEL_PATH = os.path.join('temp', 'my_checkpoint_median_rgb_deeplabv3_poly_all.pth.tar')
+INFERENCE_LINE_MODEL_PATH = os.path.join('temp', 'my_checkpoint_median_rgb_deeplabv3_line_all.pth.tar')
+
 SAVED_IMAGE_PATH = os.path.join('temp', 'saved_images', EXP_NAME)
 os.makedirs(SAVED_IMAGE_PATH, exist_ok=True)

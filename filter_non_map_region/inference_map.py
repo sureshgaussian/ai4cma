@@ -54,6 +54,6 @@ def inference(step):
 
 if __name__ == '__main__':
     step = 'validation'
-    # generate_downscaled_data(step)
+    generate_downscaled_data(step)
     inference(step)
-    # restore_prediction_dimensions(step)
+    restore_prediction_dimensions(step)

@@ -335,8 +335,8 @@ if __name__ == '__main__':
     for ind, row in df.iterrows():
 
         save_path = os.path.join(RESULTS_CNTS_DIR, step, row['mask_fname'].replace('.tif', '.png'))
-        # if os.path.exists(save_path):
-        #     continue
+        if os.path.exists(save_path):
+            continue
 
         if '_poly' not in row['mask_fname']:
             continue
@@ -344,12 +344,6 @@ if __name__ == '__main__':
         img_path = os.path.join(inp_dir, row['inp_fname'])
         pred_path = os.path.join(pred_dir, row['mask_fname'])
         target_path = os.path.join(inp_dir, row['mask_fname'])
-
-        # if 'MT_RedRockLakes_Qpfg_0_poly' not in pred_path:
-        #     continue
-
-        # if 'MT_RedRockLakes' not in pred_path:
-        #     continue
 
         # Prediction is not available
         if not os.path.exists(pred_path):
@@ -359,33 +353,8 @@ if __name__ == '__main__':
 
         print(img_path, pred_path, target_path)
 
-        # pred = cv2.imread(pred_path, 0)
-        # pred = (pred*255).astype('uint8')
-        # print(np.min(pred), np.max(pred))
-        # # imshow_r('pred', pred, True)
-        # pred = cv2.threshold(pred,127,255,cv2.THRESH_BINARY)[1]
-        # print(pred.shape)
-        # # imshow_r('pred_thresh', pred, True)
-        # pred = np.array(pred, dtype='uint8')
         img = draw_contours_big(img_path, pred_path, target_path, debug = False)
 
         imshow_r(row['mask_fname'], img, stop=True, width=800)
-        # cv2.imwrite(save_path, img)
-
-    # # Test dilation
-    # mask_paths = glob(os.path.join(TRAIN_MASK_DIR, '*.tif'))
-    # for mask_path in mask_paths:
-    #     if 'poly' in mask_path:
-    #         continue
-    #     if 'pt' in mask_path:
-    #         continue
-    #     mask = cv2.imread(mask_path, 0)
-    #     # img = cv2.imread(mask_path.replace('masks', 'inputs'))
-    #     # imshow_r('img', img, True)
-    #     if np.sum(mask):
-    #         dilate_mask(mask)
-    #         break
-
-
-    # View points
+        cv2.imwrite(save_path, img)
 
