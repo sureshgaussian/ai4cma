@@ -30,9 +30,10 @@ def preprocess_points(points):
     points = [(int(point[0]), int(point[1]))for point in points]
     return points
 
-def main(args):
+def generate_median_data(stage):
 
-    data_path = os.path.join(CHALLENGE_INP_DIR, args.stage)
+    data_path = os.path.join(CHALLENGE_INP_DIR, stage)
+    os.makedirs(os.path.join(ROOT_PATH, 'eda'), exist_ok=True)
     legends_median_data_path = os.path.join(ROOT_PATH, 'eda/legends_median_data.json')
 
     if os.path.exists(legends_median_data_path):
@@ -103,4 +104,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Prepare inputs parser')
     parser.add_argument('-s', '--stage', default='validation', help='which stage? [training, testing, validation]')
     args = parser.parse_args()
-    main(args)
+    stage = args.stage
+    generate_median_data(stage)

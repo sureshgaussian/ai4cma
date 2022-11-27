@@ -18,6 +18,7 @@ from config import (
 )
 import img2tiles
 import json
+from get_median_data import generate_median_data
 
 
 def make_output_dirs(input_dir, output_dir, tiled_input_dir="tiled_inputs",
@@ -319,7 +320,7 @@ def process_args(args):
         'challenge': CHALLENGE_INP_DIR,
     }
 
-
+    generate_median_data(args.stage)
     assert( str(args.tile_size).isnumeric() )
 
     if args.stage not in stages_dir.keys():
