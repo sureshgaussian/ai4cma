@@ -2,6 +2,14 @@
 
 Please refer the [Technical brief](https://docs.google.com/document/d/1a0EBnFSQ1DcMRbstXgN6WoNj8gnfO-mXbVIBr4LEM2c/edit?usp=sharing) for an overview of the approach. 
 
+## Setting up the environment
+```
+conda create -n env_cma python=3.9
+conda activate env_cma
+git clone https://github.com/sureshgaussian/ai4cma.git
+cd ai4cma
+pip install -r requirements.txt
+```
 ## Preparing inputs
 All the parameters required to process the inputs, run the experiments, generate predictions are defined in `config.py` file.
 <br >
@@ -35,6 +43,7 @@ DATA_ROOT
 │   │   ├── ...
 ```
 ## Training
+Parameters related to training are specified in `$PROJECT_DIR/config.py`.
 ```
 python train.py -d challenge
 ```
@@ -90,7 +99,7 @@ DATA_ROOT
 │   │   .
 ```
 ## Visualize results
-Run the below command for qualitative analysis of predictions.
+Run the below command for qualitative analysis of predictions. Sample visualizations are available in `$PROJECT_DIR/sample_viz`.
 ```
 python generate_visualizations.py 
 ```
