@@ -30,6 +30,7 @@ python prepare.py -d challenge -o prepare_inputs
 ```
 This creates a folder structure as shown below
 ```
+
 ROOT_PATH    
 ├── tiled_inputs
 │   ├── info
@@ -43,17 +44,23 @@ ROOT_PATH
 │   │   ├── legends
 │   │   ├── masks
 │   ├── challenge_testing
-│   │   ├── ...
+│   │   ├── info
+│   │   │   ├── all_tiles.csv (holds the tile information)
+│   │   │   ├── balanced_tiles.csv
+│   │   ├── inputs
+│   │   ├── legends
+│   │   ├── masks
+│   ├── ...
 ```
 ## Training
-Parameters related to training are specified in `$PROJECT_DIR/config.py`.
+Parameters related to training are specified in `$ROOT_PATH/config.py`.
 ```
 python train.py -d challenge
 ```
-Saves the model checkpoints under `$PROJECT_DIR/temp`.
+Saves the model checkpoints under `$ROOT_PATH/temp`.
 
 ## Inference
-Download the trained models from [here](https://drive.google.com/drive/folders/1hnG_aEAPy561fyPqBlmVRFge64yVa2Bp?usp=share_link) and place them under `$PROJECT_DIR/temp`.
+Download the trained models from [here](https://drive.google.com/drive/folders/1hnG_aEAPy561fyPqBlmVRFge64yVa2Bp?usp=share_link) and place them under `$ROOT_PATH/temp`.
 Run the script to generate tiles for each validation file, run the inference and save the stitched predictions under `$ROOT_PATH/results/`
 Note: For any inference task, please place the files under 'validation' folder for the script to pick up the files. This is a limitation of how we coded the path set up, relative paths etc, and not the algorithm limitation.
 ```
@@ -103,7 +110,7 @@ ROOT_PATH
 │   │   .
 ```
 ## Visualize results
-Run the below command for qualitative analysis of predictions. Sample visualizations are available in `$PROJECT_DIR/sample_viz`.
+Run the below command for qualitative analysis of predictions. Sample visualizations are available in `$ROOT_PATH/sample_viz`.
 ```
 python generate_visualizations.py 
 ```
