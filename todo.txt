@@ -1,3 +1,80 @@
+To do:
+- Need to get the MEDIAN polygon score on the test set.
+- Need functionality to run inference with image name and raster name as input.
+- Add assertions to have a valid submission. 
+	-> Values during inference shouldn't be other than 0 and 1
+	-> Handle corrupt file
+	-> Remove paddings for the inference images (if there are any)
+	-> Dont forget to use the postprocessing logic to remove false positives. 
+- 24_Black_Crystal_2014_11.tif inferences all seem zero. need to check why.
+
+
+New Structure of the inputs organization:
+
+/home/suresh/challenges/ai4cma/data : has the full data from the challenge
+/home/suresh/challenges/ai4cma/mini_data: small subset to run pipeline, testing code etc 
+
+/home/suresh/challenges/ai4cma/tiled_inputs/ : base directory under which the tiled inputs exist
+    info/challenge_testing_split_files.csv: information about the files used in testing split for the full challenge dataset
+    info/challenge_training_split_files.csv: information about the files used in training split for the full challenge dataset
+    info/mini_testing (&training) split_files.csv: testing/training split files for mini_data set 
+    challenge_testing/ folder contains inputs necessary for testing the challenge testing data set 
+    challenge_training/ folder contains inputs necessary for testing the challenge training data set 
+    mini_testing/ folder contains inputs necessary for testing the mini testing data set 
+    mini_training/ folder contains inputs necessary for testing the mini training data set 
+        under these folders, the structure is:
+        info/all_tiles.csv : information about all the tiles of the inputs 
+        info/balanced_tiles.csv : balance for that set with empty_tiles at 0.6 ratio 
+        inputs/ folder containing the input files for the data set 
+        legends/ folder containing legends images filled to a tiled size
+        masks/ folder containing the tiled mask inputs for the data set 
+
+Folders already have required files populated by Suresh.
+
+If any time you need to redo the inputs, use the following commands (shown on mini dataset. 
+    change mini to challenge for the entire challenge data set):
+
+    python prepare.py -o prepare_inputs -d mini -s training 
+
+
+Problems faced:
+1. AK_Kechumstuk.tif failed with 'Killed': 
+    - conjecture: this was due to swap space issues
+2. Trend_2007_fig6_2.json file has wrong image height and width 
+3. /home/suresh/challenges/ai4cma/data/validation/DMEA2328_OldLeydenMine_CO.tif : crashes
+Inputs on October 9th
+------------
+1. code/training_input_info.csv: the entire training data set provided by ai4cma challenge info captured
+2. eda/train_split.csv, eda/test_split.csv : input files based train, test split (80%,20%) of training_input_info.csv 
+3. prepare.py : use this file to generate individual tiles necessary for training. (the process is currently running)
+4. prepare.py will generate two files:
+    a. training_tiled_inputs.csv: eda/train_split.csv json files, processed to make input files, label_files, and mask_files (97% empty tiles) [200K]
+    b. balanced_tiled_training.csv : balanced training inputs to get empty tiles to be ~ 60% only. you can adjust the ratio in prepare.py [4K]
+5. use balanced_tiled_training.csv for training.. save the model (lets say ai4cma_v1.tar)
+5.a: to get the test_split tiled files:
+    i) change line 220 in prepare.py to ../eda/test_split.csv 
+    ii) line 229 to test_tiled_inputs.csv
+    iii) changed 233 to balanced_tiled_tests.csv 
+6. For inference:
+    a) mkdir 'test_set'
+    b) copy the files that appear in eda/test_split.csv (inp_fname) to the above folder (better way is to change inference.py to take a csv as input, may be will do next)
+    c) set the directories and config needed for inference
+    d) run inference.py
+
+During iference, write individual scores for each legend to a csv for better comparison
+
 1. Try other losses: dice, distance penalized cross entropy loss, focal loss 
 2. fix save segments functions
 3. change legends
+
+First focus on validation:
+----------------------
+- Inputs are in data/validation folder. contains json, and base tif files.
+- tile_size = 256
+- step 1: for each label, produce tiled_inputs, tiled_legend, ht, wd, legend_type (pass on the non-poly type)
+- step 2: pass predict.csv to predict.
+
+Ravi: Check the baseline points & lines f1 score
+Suresh: Check the baseline polygons f1 score 
+Ravi: try SIFT like algos on points 
+
