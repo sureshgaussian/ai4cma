@@ -76,6 +76,7 @@ EXP_NAME = f"{EXP_NAME}_{NUM_SAMPLES if NUM_SAMPLES else 'all'}"
 CHEKPOINT_PATH = os.path.join('temp', f"my_checkpoint_{EXP_NAME}.pth.tar")
 INFERENCE_POLY_MODEL_PATH = os.path.join('temp', 'my_checkpoint_median_rgb_deeplabv3_poly_all.pth.tar')
 INFERENCE_LINE_MODEL_PATH = os.path.join('temp', 'my_checkpoint_median_rgb_deeplabv3_line_all.pth.tar')
+INFERENCE_PT_MODEL_PATH = INFERENCE_POLY_MODEL_PATH
 
 SAVED_IMAGE_PATH = os.path.join('temp', 'saved_images', EXP_NAME)
 os.makedirs(SAVED_IMAGE_PATH, exist_ok=True)

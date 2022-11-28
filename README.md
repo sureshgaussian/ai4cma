@@ -3,7 +3,7 @@ This repo contains the code for the solution proposed by Gaussian Solutions LLC 
 
 # Approach
 
-Please refer the [Technical brief](https://docs.google.com/document/d/1a0EBnFSQ1DcMRbstXgN6WoNj8gnfO-mXbVIBr4LEM2c/edit?usp=sharing) for an overview of the approach. 
+Please refer the [Technical brief](https://docs.google.com/document/d/14Oicvt6i5xTHAOS9gkVIVMF5okK_hokVzQxuZGgg5xc/edit?usp=sharing) for an overview of the approach. 
 
 ## Setting up the environment
 ```
@@ -19,7 +19,7 @@ All the parameters required to process the inputs, run the experiments, generate
 Specify the `ROOT_PATH` in `config.py`. This directory is used to hold the raw and preprocessed data, model checkpoints, and results.<br >
 Extract the training and validation data to `$ROOT_PATH/data/`
 ```
-DATA_ROOT 
+ROOT_PATH 
 ├── data
 │   ├── training
 │   ├── validation
@@ -30,7 +30,8 @@ python prepare.py -d challenge -o prepare_inputs
 ```
 This creates a folder structure as shown below
 ```
-DATA_ROOT    
+
+ROOT_PATH    
 ├── tiled_inputs
 │   ├── info
 │   │   ├── challenge_training_files.csv (holds meta data of each binary raster file)
@@ -43,24 +44,30 @@ DATA_ROOT
 │   │   ├── legends
 │   │   ├── masks
 │   ├── challenge_testing
-│   │   ├── ...
+│   │   ├── info
+│   │   │   ├── all_tiles.csv (holds the tile information)
+│   │   │   ├── balanced_tiles.csv
+│   │   ├── inputs
+│   │   ├── legends
+│   │   ├── masks
+│   ├── ...
 ```
 ## Training
-Parameters related to training are specified in `$PROJECT_DIR/config.py`.
+Parameters related to training are specified in `$ROOT_PATH/config.py`.
 ```
 python train.py -d challenge
 ```
-Saves the model checkpoints under `$PROJECT_DIR/tmp`.
+Saves the model checkpoints under `$ROOT_PATH/temp`.
 
 ## Inference
-Download the trained models from [here](https://drive.google.com/drive/folders/1LycmdhAzBmzk6C3I_6GbvfoXyIyK_U-1?usp=share_link) and place them under `$PROJECT_DIR/temp`.
+Download the trained models from [here](https://drive.google.com/drive/folders/1hnG_aEAPy561fyPqBlmVRFge64yVa2Bp?usp=share_link) and place them under `$ROOT_PATH/temp`.
 Run the script to generate tiles for each validation file, run the inference and save the stitched predictions under `$ROOT_PATH/results/`
 Note: For any inference task, please place the files under 'validation' folder for the script to pick up the files. This is a limitation of how we coded the path set up, relative paths etc, and not the algorithm limitation.
 ```
 python inference.py -d challenge -s validation 
 ```
 ```
-DATA_ROOT  
+ROOT_PATH  
 ├── results
 │   ├── testing
 │   ├── validation
@@ -76,7 +83,7 @@ DATA_ROOT
 python postprocessing.py
 ```
 ```
-DATA_ROOT  
+ROOT_PATH  
 ├── results_pp_within_map
 │   ├── testing
 │   ├── validation
@@ -93,7 +100,7 @@ python filter_non_map_region/inference_map.py
 python postprocessing_submission.py
 ```
 ```
-DATA_ROOT  
+ROOT_PATH  
 ├── results_pp_outside_map
 │   ├── testing
 │   ├── validation
@@ -103,11 +110,11 @@ DATA_ROOT
 │   │   .
 ```
 ## Visualize results
-Run the below command for qualitative analysis of predictions. Sample visualizations are available in `$PROJECT_DIR/sample_viz`.
+Run the below command for qualitative analysis of predictions. Sample visualizations are available in `$ROOT_PATH/sample_viz`.
 ```
 python generate_visualizations.py 
 ```
 ```
-DATA_ROOT  
+ROOT_PATH  
 ├── results_contours
 ```
