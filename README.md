@@ -3,7 +3,7 @@ This repo contains the code for the solution proposed by Gaussian Solutions LLC 
 
 # Approach
 
-Please refer the [Technical brief](https://docs.google.com/document/d/1a0EBnFSQ1DcMRbstXgN6WoNj8gnfO-mXbVIBr4LEM2c/edit?usp=sharing) for an overview of the approach. 
+Please refer the [Technical brief](https://docs.google.com/document/d/14Oicvt6i5xTHAOS9gkVIVMF5okK_hokVzQxuZGgg5xc/edit?usp=sharing) for an overview of the approach. 
 
 ## Setting up the environment
 ```
