@@ -1,4 +1,7 @@
-# ai4cma
+# Introduction
+This repo contains the code for the solution proposed by Gaussian Solutions LLC for the DARPA's challenge 'AI for Critical Mineral Assessment Competition'. More about the competition can be read [here] https://criticalminerals.darpa.mil/Leaderboard
+
+# Approach
 
 Please refer the [Technical brief](https://docs.google.com/document/d/1a0EBnFSQ1DcMRbstXgN6WoNj8gnfO-mXbVIBr4LEM2c/edit?usp=sharing) for an overview of the approach. 
 
@@ -50,8 +53,9 @@ python train.py -d challenge
 Saves the model checkpoints under `$PROJECT_DIR/tmp`.
 
 ## Inference
-Download the trained models from [here](https://drive.google.com/drive/folders/1LycmdhAzBmzk6C3I_6GbvfoXyIyK_U-1?usp=share_link) and place them under `$PROJECT_DIR/tmp`.
+Download the trained models from [here](https://drive.google.com/drive/folders/1LycmdhAzBmzk6C3I_6GbvfoXyIyK_U-1?usp=share_link) and place them under `$PROJECT_DIR/temp`.
 Run the script to generate tiles for each validation file, run the inference and save the stitched predictions under `$ROOT_PATH/results/`
+Note: For any inference task, please place the files under 'validation' folder for the script to pick up the files. This is a limitation of how we coded the path set up, relative paths etc, and not the algorithm limitation.
 ```
 python inference.py -d challenge -s validation 
 ```
